@@ -1,0 +1,2115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Floor Plan Editor - Network Monitoring System</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f7fa;
+      height: 100vh; 
+      display: flex; 
+      flex-direction: column; 
+      overflow: hidden; 
+    }
+    
+    .toolbar {
+      background: #fefce8;
+      padding: 16px 20px;
+      display: flex;
+      gap: 12px;
+      border-bottom: 1px solid #fde047;
+      flex-wrap: wrap;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .toolbar-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 0 16px;
+      border-right: 1px solid #e2e8f0;
+    }
+    .toolbar-group:last-child { border-right: none; }
+    
+    .toolbar-label { 
+      color: #64748b; 
+      font-size: 11px; 
+      text-transform: uppercase; 
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    
+    .btn {
+      padding: 10px 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: white;
+      color: #475569;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .btn:hover { 
+      background: #f8fafc;
+      border-color: #3b82f6;
+      color: #3b82f6;
+      box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+    }
+    .btn.active { 
+      background: #3b82f6;
+      color: white;
+      border-color: #3b82f6;
+    }
+    .btn.save { 
+      background: #10b981;
+      color: white;
+      border-color: #10b981;
+      padding: 10px 20px;
+    }
+    .btn.save:hover {
+      background: #059669;
+    }
+    .btn.viewport-btn { background: #6366f1; color: white; border-color: #6366f1; }
+    .btn.viewport-btn:hover { background: #4f46e5; }
+    .btn.viewport-btn.saved { 
+      background: #10b981;
+      border-color: #10b981;
+    }
+    .btn.media-mode { 
+      background: #06b6d4; 
+      color: white; 
+      border-color: #06b6d4; 
+    }
+    .btn.media-mode.active { 
+      background: #0891b2; 
+    }
+    .btn.media-mode:hover { 
+      background: #0e7490; 
+    }
+    
+    input[type=number], input[type=text] { 
+      padding: 10px;
+      width: 70px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      color: #1e293b;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    input[type=text].wide { width: 200px; }
+    input[type=number]:focus, input[type=text]:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    input[type=range] {
+      width: 150px;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    input[type=file] { display: none; }
+    
+    #viewport { 
+      flex: 1; 
+      position: relative; 
+      background: #f8fafc; 
+      overflow: hidden; 
+      cursor: crosshair;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.03);
+    }
+    #map-container { position: absolute; transform-origin: 0 0; }
+    
+    .point {
+      position: absolute;
+      background: #ffffff;
+      border: 3px solid #06b6d4;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      color: #000000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 900;
+      font-family: Arial, sans-serif;
+      box-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
+    }
+    .point.media-point {
+      background: #ffffff;
+      border-color: #f59e0b;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+    .point:hover { 
+      transform: translate(-50%, -50%) scale(1.2); 
+      z-index: 100; 
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.6);
+    }
+    .point.media-point:hover {
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.5);
+    }
+    
+    .sidebar { 
+      width: 340px; 
+      background: #dbeafe;
+      border-left: 1px solid #bfdbfe;
+      display: flex; 
+      flex-direction: column;
+      box-shadow: -2px 0 8px rgba(0,0,0,0.05);
+    }
+    
+    .sidebar-section {
+      padding: 20px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .sidebar-section h4 { 
+      color: #1e293b; 
+      margin-bottom: 12px; 
+      font-size: 13px; 
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+    }
+    
+    .viewport-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .info-item {
+      background: #f8fafc;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .info-item .label { 
+      color: #64748b; 
+      font-size: 10px; 
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    .info-item .value { 
+      color: #3b82f6; 
+      font-size: 16px; 
+      font-weight: 700; 
+      font-family: monospace;
+    }
+    
+    .point-list { flex: 1; overflow-y: auto; padding: 12px; background: #f8fafc; }
+    .log-item { 
+      padding: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #1e293b;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      background: white;
+      transition: all 0.2s;
+      border-left: 3px solid #06b6d4;
+    }
+    .log-item:hover { 
+      background: #ecfeff;
+      transform: translateX(3px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .log-item.media-item { border-left-color: #f59e0b; }
+    .log-item.media-item:hover { background: #fffbeb; }
+    .del-btn { 
+      color: #ef4444; 
+      cursor: pointer; 
+      font-weight: 700; 
+      padding: 4px 10px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .del-btn:hover {
+      background: #ef4444;
+      color: white;
+    }
+    
+    .status-bar {
+      background: white;
+      padding: 12px 20px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      color: #64748b;
+      font-size: 11px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+    }
+    .status-indicator { display: flex; align-items: center; gap: 8px; }
+    .status-dot { 
+      width: 10px; 
+      height: 10px; 
+      border-radius: 50%;
+      box-shadow: 0 0 6px currentColor;
+    }
+    .status-dot.saved { background: #10b981; color: #10b981; }
+    .status-dot.unsaved { background: #f59e0b; color: #f59e0b; }
+    
+    #savedViewSection {
+      display: none;
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    
+    #sizePreview {
+      display: inline-block;
+      background: #ffffff;
+      border: 3px solid #06b6d4;
+      border-radius: 50%;
+      color: #000;
+      font-weight: 900;
+      text-align: center;
+      line-height: 1;
+      margin-left: 8px;
+      vertical-align: middle;
+      box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
+    }
+    
+    #viewportFrame {
+      display: none;
+      position: absolute;
+      border: 3px dashed #3b82f6;
+      pointer-events: none;
+      z-index: 1000;
+      background: rgba(59, 130, 246, 0.05);
+    }
+    
+    #viewportFrame.active { display: block; }
+
+    /* Media Preview Panel */
+    .media-preview-panel {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      z-index: 2000;
+      max-width: 600px;
+      max-height: 85vh;
+      overflow: hidden;
+    }
+
+    .media-preview-panel.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .media-preview-header {
+      background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+      padding: 20px;
+      color: white;
+    }
+
+    .media-preview-header h3 {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .media-preview-header p {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .media-preview-content {
+      padding: 20px;
+      overflow-y: auto;
+      max-height: calc(85vh - 200px);
+    }
+
+    .media-preview-content img,
+    .media-preview-content video {
+      width: 100%;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .media-preview-content video {
+      background: #000;
+    }
+
+    /* Remove Options Dialog */
+    .remove-dialog {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+    }
+    .remove-dialog.active { display: flex; }
+    
+    .remove-dialog-content {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    .remove-dialog-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #fee2e2;
+    }
+    
+    .remove-dialog-header h3 {
+      font-size: 24px;
+      color: #ef4444;
+      margin: 0;
+      flex: 1;
+    }
+    
+    .remove-option {
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .remove-option:hover {
+      background: #fee2e2;
+      border-color: #ef4444;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+    
+    .remove-option h4 {
+      font-size: 18px;
+      color: #1e293b;
+      margin: 0 0 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .remove-option p {
+      color: #64748b;
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .remove-dialog-footer {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: flex-end;
+    }
+    
+    .remove-dialog-footer button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .remove-dialog-footer .cancel-btn {
+      background: #e2e8f0;
+      color: #475569;
+    }
+    
+    .remove-dialog-footer .cancel-btn:hover {
+      background: #cbd5e1;
+    }
+
+
+    .media-preview-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .media-preview-form label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .media-preview-form input,
+    .media-preview-form textarea {
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    .media-preview-form textarea {
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
+
+    .media-preview-actions {
+      padding: 16px 20px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      background: #f8fafc;
+    }
+
+    .media-preview-actions button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .media-preview-actions .btn-cancel {
+      background: #e2e8f0;
+      color: #475569;
+    }
+
+    .media-preview-actions .btn-cancel:hover {
+      background: #cbd5e1;
+    }
+
+    .media-preview-actions .btn-ready {
+      background: #06b6d4;
+      color: white;
+    }
+
+    .media-preview-actions .btn-ready:hover {
+      background: #0891b2;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+    }
+
+    .media-ready-indicator {
+      display: none;
+      background: #dcfce7;
+      color: #166534;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      margin: 12px 20px;
+      border: 2px solid #86efac;
+      animation: pulse 2s infinite;
+    }
+
+    .media-ready-indicator.active {
+      display: block;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <label class="toolbar-label">Mode</label>
+      <button class="btn" id="btnDataMode">📍 Data Points</button>
+      <button class="btn media-mode" id="btnMediaMode">📷🎥 Media</button>
+      <button class="btn" id="btnCommentMode" style="background: #8b5cf6; color: white; border-color: #8b5cf6;">💬 Add Comment</button>
+      <button class="btn" id="btnRemoveMode">🗑️ Remove</button>
+    </div>
+    
+    <div class="toolbar-group">
+      <label class="toolbar-label">Next ID</label>
+      <input type="number" id="nextId" value="1" min="1">
+    </div>
+    
+    <div class="toolbar-group">
+      <label class="toolbar-label">Point Size</label>
+      <input type="range" id="pointSizeSlider" min="1" max="200" value="40" step="1">
+      <input type="number" id="pointSizeInput" min="1" max="200" value="40">
+      <span id="sizePreview">1</span>
+    </div>
+    
+    <div class="toolbar-group" id="mediaControls" style="display: none;">
+      <input type="file" id="mediaUpload" accept="image/*,video/*">
+      <button class="btn media-mode" id="btnUploadMedia">📤 Upload Media</button>
+    </div>
+    
+    <div class="toolbar-group">
+      <button class="btn viewport-btn" id="btnSaveViewport">💾 Save Viewport</button>
+    </div>
+    
+    <div class="toolbar-group">
+      <button class="btn" id="btnPlus">+</button>
+      <button class="btn" id="btnMinus">−</button>
+      <button class="btn" id="btnFit">⊡</button>
+    </div>
+    
+    <div class="toolbar-group">
+      <button class="btn save" id="btnSave">💾 Export JSON</button>
+      <button class="btn" style="background: #ef4444; color: white; border-color: #ef4444;" onclick="showRemoveOptions()">🗑️ Remove Data</button>
+    </div>
+  </div>
+
+  <div class="media-ready-indicator" id="mediaReadyIndicator">
+    ✅ Media ready! Click anywhere on the map to place the point
+  </div>
+
+  <div style="display: flex; flex: 1; overflow: hidden;">
+    <div id="viewport">
+      <div id="map-container">
+        <img id="floorImage" src="floor1.jpg" alt="Floor Plan">
+      </div>
+      <div id="viewportFrame"></div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <h4>Viewport Info</h4>
+        <div class="viewport-info">
+          <div class="info-item"><div class="label">Zoom</div><div class="value" id="infoZoom">100%</div></div>
+          <div class="info-item"><div class="label">Points</div><div class="value" id="infoPoints">0</div></div>
+          <div class="info-item"><div class="label">Pan X</div><div class="value" id="infoPanX">0</div></div>
+          <div class="info-item"><div class="label">Pan Y</div><div class="value" id="infoPanY">0</div></div>
+        </div>
+      </div>
+      
+      <div class="sidebar-section" id="savedViewSection">
+        <h4>Saved Viewport</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+          <div><strong>Zoom:</strong> <span id="savedZoom">-</span></div>
+          <div><strong>Size:</strong> <span id="savedSize">-</span></div>
+        </div>
+      </div>
+      
+      <div class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; padding: 0;">
+        <h4 style="padding: 20px 20px 12px;">Points List</h4>
+        <div class="point-list" id="pointList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Media Preview Panel -->
+  <div class="media-preview-panel" id="mediaPreviewPanel">
+    <div class="media-preview-header">
+      <h3 id="previewTitle">📷 Image Preview</h3>
+      <p>Review your media before placing it on the floor plan</p>
+    </div>
+    <div class="media-preview-content">
+      <div id="mediaPreviewContainer"></div>
+      <div class="media-preview-form">
+        <div>
+          <label>Label / Name</label>
+          <input type="text" id="previewLabel" placeholder="Enter a label for this media">
+        </div>
+        <div>
+          <label>Caption (Optional)</label>
+          <textarea id="previewCaption" placeholder="Add a description or note"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="media-preview-actions">
+      <button class="btn-cancel" id="btnCancelMedia">Cancel</button>
+      <button class="btn-ready" id="btnReadyToPlace">✓ Ready to Place</button>
+    </div>
+  </div>
+
+  <!-- Comment Designer Dialog with Drawing Canvas -->
+  <div class="media-preview-panel" id="commentDialog" style="display: none; max-width: 1000px;">
+    <div class="media-preview-header" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+      <h3>💬 Design Comment Box</h3>
+      <p>Draw your custom speech bubble shape and style the text</p>
+    </div>
+    <div class="media-preview-content" style="max-height: calc(85vh - 180px);">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        
+        <!-- Left Side: Drawing Canvas -->
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; margin-bottom: 12px;">
+            ✏️ Draw Your Speech Bubble Shape
+          </label>
+          
+          <div style="background: #ffffff; border: 3px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+            <canvas id="bubbleCanvas" width="400" height="300" style="display: block; border: 2px dashed #cbd5e1; border-radius: 8px; cursor: crosshair; background: white;"></canvas>
+            
+            <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+              <button onclick="startDrawing()" class="draw-btn" id="drawBtn" style="background: #10b981; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;">
+                ✏️ Draw/Edit Shape
+              </button>
+              <button onclick="clearCanvas()" style="background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;">
+                🗑️ Clear Canvas
+              </button>
+              <button onclick="undoLastPoint()" style="background: #f59e0b; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;">
+                ↶ Undo Point
+              </button>
+              <button onclick="closeShape()" style="background: #06b6d4; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;">
+                ✓ Close Shape
+              </button>
+            </div>
+            
+            <div style="background: #f0f9ff; padding: 10px; border-radius: 6px; margin-top: 12px; font-size: 12px; color: #0369a1;">
+              <strong>📝 How to draw:</strong><br>
+              1. Click "✏️ Draw/Edit Shape"<br>
+              2. Click points on canvas to draw your bubble<br>
+              3. Click "✓ Close Shape" when done<br>
+              4. Or choose a preset shape below
+            </div>
+          </div>
+          
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; margin-bottom: 8px;">
+            🎨 Or Choose Preset Shape
+          </label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px;">
+            <button onclick="loadPreset('rectangle')" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; background: white; font-size: 11px;">
+              ⬜ Rectangle
+            </button>
+            <button onclick="loadPreset('rounded')" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; background: white; font-size: 11px;">
+              ▢ Rounded
+            </button>
+            <button onclick="loadPreset('cloud')" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; background: white; font-size: 11px;">
+              ☁️ Cloud
+            </button>
+            <button onclick="loadPreset('bubble-left')" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; background: white; font-size: 11px;">
+              💭 Left Tail
+            </button>
+            <button onclick="loadPreset('bubble-bottom')" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; background: white; font-size: 11px;">
+              💬 Bottom Tail
+            </button>
+            <button onclick="loadPreset('ellipse')" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; background: white; font-size: 11px;">
+              ⭕ Ellipse
+            </button>
+          </div>
+        </div>
+        
+        <!-- Right Side: Styling Controls & Preview -->
+        <div>
+          <div class="media-preview-form">
+            <div>
+              <label>💬 Comment Text</label>
+              <textarea id="commentText" placeholder="Enter your comment..." style="min-height: 80px; font-size: 14px;"></textarea>
+            </div>
+            
+            <div>
+              <label>🖼️ Comment Image (Optional)</label>
+              <input type="file" id="commentImageUpload" accept="image/*" style="display: none;">
+              <button onclick="document.getElementById('commentImageUpload').click()" style="width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px;">
+                📤 Upload Image
+              </button>
+              <div id="commentImagePreview" style="margin-top: 8px; display: none;">
+                <img id="commentImageDisplay" style="max-width: 100%; max-height: 120px; border-radius: 8px; border: 2px solid #e2e8f0;">
+                <button onclick="removeCommentImage()" style="margin-top: 4px; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                  🗑️ Remove Image
+                </button>
+              </div>
+            </div>
+            
+            <div id="imageSizeControl" style="display: none;">
+              <label>📐 Image Size (px)</label>
+              <input type="number" id="commentImageSize" value="140" min="60" max="300" step="10" style="width: 100%;">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label>🎨 Fill Color</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="color" id="commentBgColor" value="#f5f3ff" style="width: 50px; height: 38px; border-radius: 6px; cursor: pointer;">
+                  <input type="text" id="commentBgColorText" value="#f5f3ff" style="width: 100px; font-family: monospace; font-size: 12px;">
+                </div>
+              </div>
+              
+              <div>
+                <label>🖊️ Text Color</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="color" id="commentTextColor" value="#5b21b6" style="width: 50px; height: 38px; border-radius: 6px; cursor: pointer;">
+                  <input type="text" id="commentTextColorText" value="#5b21b6" style="width: 100px; font-family: monospace; font-size: 12px;">
+                </div>
+              </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label>📐 Border Width (px)</label>
+                <input type="number" id="commentBorderWidth" value="3" min="0" max="10" style="width: 100%;">
+              </div>
+              
+              <div>
+                <label>🎨 Border Color</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="color" id="commentBorderColor" value="#000000" style="width: 50px; height: 38px; border-radius: 6px; cursor: pointer;">
+                  <input type="text" id="commentBorderColorText" value="#000000" style="width: 100px; font-family: monospace; font-size: 12px;">
+                </div>
+              </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label>📝 Font Size (px)</label>
+                <input type="number" id="commentFontSize" value="14" min="10" max="24" style="width: 100%;">
+              </div>
+              
+              <div>
+                <label>📦 Padding (px)</label>
+                <input type="number" id="commentPadding" value="16" min="0" max="40" style="width: 100%;">
+              </div>
+            </div>
+            
+            <div>
+              <label>✨ Show Comment Icon</label>
+              <input type="checkbox" id="commentShowIcon" checked style="width: 20px; height: 20px; cursor: pointer;">
+            </div>
+          </div>
+          
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; margin: 16px 0 8px;">
+            👁️ Live Preview (How Users Will See It)
+          </label>
+          <div style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; min-height: 200px; display: flex; align-items: center; justify-content: center;">
+            <div id="commentPreview" style="position: relative;">
+              <!-- Preview will be generated here -->
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    <div class="media-preview-actions">
+      <button class="btn-cancel" id="btnCancelComment">Cancel</button>
+      <button class="btn-ready" id="btnSaveComment" style="background: #8b5cf6;">✓ Save Comment Design</button>
+    </div>
+  </div>
+
+  <!-- Remove Options Dialog -->
+  <div class="remove-dialog" id="removeDialog">
+    <div class="remove-dialog-content">
+      <div class="remove-dialog-header">
+        <h3>🗑️ Remove Data</h3>
+      </div>
+      
+      <div class="remove-option" onclick="removeSpecificPoint()">
+        <h4>🎯 Remove Specific Point</h4>
+        <p>Click on individual points to remove them one at a time. You'll stay in remove mode until you're done.</p>
+      </div>
+      
+      <div class="remove-option" onclick="confirmRemoveAll()">
+        <h4>⚠️ Remove All Data</h4>
+        <p>This will permanently delete ALL points, media, and comments from the map. This action cannot be undone.</p>
+      </div>
+      
+      <div class="remove-dialog-footer">
+        <button class="cancel-btn" onclick="closeRemoveDialog()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-indicator">
+      <div class="status-dot saved" id="statusDot"></div>
+      <span id="statusText">Ready</span>
+    </div>
+    <div>Floor Plan Editor v2.1 - Media Preview Enabled</div>
+  </div>
+
+<script>
+  const viewport = document.getElementById('viewport');
+  const container = document.getElementById('map-container');
+  const img = document.getElementById('floorImage');
+  const nextIdInput = document.getElementById('nextId');
+  const pointSizeSlider = document.getElementById('pointSizeSlider');
+  const pointSizeInput = document.getElementById('pointSizeInput');
+  const sizePreview = document.getElementById('sizePreview');
+  const previewFrame = document.getElementById('viewportFrame');
+  const mediaPreviewPanel = document.getElementById('mediaPreviewPanel');
+  const mediaPreviewContainer = document.getElementById('mediaPreviewContainer');
+  const previewTitle = document.getElementById('previewTitle');
+  const previewLabel = document.getElementById('previewLabel');
+  const previewCaption = document.getElementById('previewCaption');
+  const mediaReadyIndicator = document.getElementById('mediaReadyIndicator');
+  const commentDialog = document.getElementById('commentDialog');
+  const commentText = document.getElementById('commentText');
+  
+  let scale = 1, x = 0, y = 0;
+  let isDragging = false, startX = 0, startY = 0;
+  let points = [];
+  let savedViewport = null;
+  let mode = 'data';
+  let pointType = 'data';
+  let currentPointSize = 40;
+  let hasUnsavedChanges = false;
+  let pendingMediaData = null;
+  let mediaReadyToPlace = false;
+  let selectedPointForComment = null;
+  let commentImageData = null;
+  
+  // Canvas drawing variables
+  let canvas, ctx;
+  let drawingPoints = [];
+  let isDrawingMode = false;
+  let shapeIsClosed = false;
+  
+  // Comment styling defaults
+  let commentStyle = {
+    bgColor: '#f5f3ff',
+    textColor: '#5b21b6',
+    borderWidth: 3,
+    borderColor: '#000000',
+    padding: 16,
+    fontSize: 14,
+    showIcon: true,
+    customPath: null, // SVG path for custom shape
+    imageSize: 140 // Default image size
+  };
+
+  function updateSizePreview() {
+    const size = parseInt(pointSizeInput.value);
+    sizePreview.style.width = size + 'px';
+    sizePreview.style.height = size + 'px';
+    sizePreview.style.fontSize = (size * 0.5) + 'px';
+    sizePreview.style.lineHeight = size + 'px';
+    sizePreview.textContent = nextIdInput.value;
+  }
+
+  pointSizeSlider.addEventListener('input', e => {
+    currentPointSize = parseInt(e.target.value);
+    pointSizeInput.value = currentPointSize;
+    updateSizePreview();
+    document.querySelectorAll('.point').forEach(el => {
+      const displaySize = (parseInt(el.dataset.size) || currentPointSize) / scale;
+      el.style.width = displaySize + 'px';
+      el.style.height = displaySize + 'px';
+    });
+  });
+
+  pointSizeInput.addEventListener('input', e => {
+    currentPointSize = parseInt(e.target.value);
+    pointSizeSlider.value = currentPointSize;
+    updateSizePreview();
+    document.querySelectorAll('.point').forEach(el => {
+      const displaySize = (parseInt(el.dataset.size) || currentPointSize) / scale;
+      el.style.width = displaySize + 'px';
+      el.style.height = displaySize + 'px';
+    });
+  });
+
+  nextIdInput.addEventListener('input', updateSizePreview);
+  updateSizePreview();
+
+  function updateInfoDisplay() {
+    document.getElementById('infoZoom').textContent = Math.round(scale * 100) + '%';
+    document.getElementById('infoPoints').textContent = points.length;
+    document.getElementById('infoPanX').textContent = Math.round(x);
+    document.getElementById('infoPanY').textContent = Math.round(y);
+  }
+
+  function updateTransform() {
+    container.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+    document.querySelectorAll('.point').forEach(el => {
+      const displaySize = (parseInt(el.dataset.size) || currentPointSize) / scale;
+      el.style.width = displaySize + 'px';
+      el.style.height = displaySize + 'px';
+    });
+    updateInfoDisplay();
+  }
+
+  viewport.addEventListener('mousedown', e => {
+    if (e.target !== viewport && e.target !== container && e.target !== img) return;
+    isDragging = true;
+    startX = e.clientX - x;
+    startY = e.clientY - y;
+    viewport.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (isDragging) {
+      e.preventDefault();
+      x = e.clientX - startX;
+      y = e.clientY - startY;
+      updateTransform();
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    isDragging = false;
+    viewport.style.cursor = mode === 'add' ? 'crosshair' : 'grab';
+  });
+
+  viewport.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY > 0 ? 0.9 : 1.1;
+    const rect = viewport.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    
+    const oldScale = scale;
+    let newScale = scale * factor;
+    newScale = Math.max(0.1, Math.min(10, newScale));
+    
+    x = mx - (mx - x) * (newScale / oldScale);
+    y = my - (my - y) * (newScale / oldScale);
+    scale = newScale;
+    
+    updateTransform();
+  });
+
+  function zoom(factor) {
+    const rect = viewport.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    
+    const oldScale = scale;
+    let newScale = scale * factor;
+    newScale = Math.max(0.1, Math.min(10, newScale));
+    
+    x = cx - (cx - x) * (newScale / oldScale);
+    y = cy - (cy - y) * (newScale / oldScale);
+    scale = newScale;
+    
+    updateTransform();
+  }
+
+  function fitToScreen() {
+    const vw = viewport.clientWidth;
+    const vh = viewport.clientHeight;
+    const iw = img.naturalWidth || 2000;
+    const ih = img.naturalHeight || 2000;
+    
+    const scaleW = vw / iw;
+    const scaleH = vh / ih;
+    scale = Math.min(scaleW, scaleH) * 0.95;
+    
+    x = (vw - iw * scale) / 2;
+    y = (vh - ih * scale) / 2;
+    
+    updateTransform();
+  }
+
+  document.getElementById('btnDataMode').onclick = () => {
+    mode = 'add';
+    pointType = 'data';
+    mediaReadyToPlace = false;
+    mediaReadyIndicator.classList.remove('active');
+    document.getElementById('btnDataMode').classList.add('active');
+    document.getElementById('btnMediaMode').classList.remove('active');
+    document.getElementById('btnRemoveMode').classList.remove('active');
+    document.getElementById('mediaControls').style.display = 'none';
+    viewport.style.cursor = 'crosshair';
+    
+    document.querySelectorAll('.point').forEach(el => {
+      if (el.dataset.type === 'media') {
+        el.style.display = 'none';
+      } else {
+        el.style.display = 'flex';
+      }
+    });
+    
+    renderSidebar();
+  };
+
+  document.getElementById('btnMediaMode').onclick = () => {
+    mode = 'add';
+    pointType = 'media';
+    document.getElementById('btnDataMode').classList.remove('active');
+    document.getElementById('btnMediaMode').classList.add('active');
+    document.getElementById('btnRemoveMode').classList.remove('active');
+    document.getElementById('mediaControls').style.display = 'flex';
+    viewport.style.cursor = 'crosshair';
+    
+    document.querySelectorAll('.point').forEach(el => {
+      if (el.dataset.type === 'media') {
+        el.style.display = 'flex';
+      } else {
+        el.style.display = 'none';
+      }
+    });
+    
+    renderSidebar();
+  };
+
+  document.getElementById('btnRemoveMode').onclick = () => {
+    mode = 'remove';
+    mediaReadyToPlace = false;
+    mediaReadyIndicator.classList.remove('active');
+    document.getElementById('btnDataMode').classList.remove('active');
+    document.getElementById('btnMediaMode').classList.remove('active');
+    document.getElementById('btnCommentMode').classList.remove('active');
+    document.getElementById('btnRemoveMode').classList.add('active');
+    document.getElementById('mediaControls').style.display = 'none';
+    viewport.style.cursor = 'pointer';
+    
+    document.querySelectorAll('.point').forEach(el => {
+      el.style.display = 'flex';
+    });
+    
+    renderSidebar();
+  };
+
+  document.getElementById('btnCommentMode').onclick = () => {
+    mode = 'comment';
+    mediaReadyToPlace = false;
+    mediaReadyIndicator.classList.remove('active');
+    document.getElementById('btnDataMode').classList.remove('active');
+    document.getElementById('btnMediaMode').classList.remove('active');
+    document.getElementById('btnCommentMode').classList.add('active');
+    document.getElementById('btnRemoveMode').classList.remove('active');
+    document.getElementById('mediaControls').style.display = 'none';
+    viewport.style.cursor = 'pointer';
+    
+    document.querySelectorAll('.point').forEach(el => {
+      el.style.display = 'flex';
+    });
+    
+    renderSidebar();
+  };
+
+  document.getElementById('btnDataMode').click();
+
+  document.getElementById('btnUploadMedia').onclick = () => {
+    document.getElementById('mediaUpload').click();
+  };
+
+  document.getElementById('mediaUpload').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+    
+    console.log('File selected:', file.name, file.type, file.size);
+    
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      pendingMediaData = {
+        data: evt.target.result,
+        name: file.name,
+        type: file.type
+      };
+      
+      console.log('File loaded successfully, showing preview');
+      showMediaPreview(pendingMediaData);
+    };
+    reader.onerror = (error) => {
+      console.error('Error reading file:', error);
+      alert('Error loading file. Please try again.');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Comment Image Upload Handler
+  document.getElementById('commentImageUpload').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      commentImageData = evt.target.result;
+      document.getElementById('commentImageDisplay').src = commentImageData;
+      document.getElementById('commentImagePreview').style.display = 'block';
+      document.getElementById('imageSizeControl').style.display = 'block';
+      updateCommentPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+  
+  document.getElementById('commentImageSize').addEventListener('input', (e) => {
+    commentStyle.imageSize = parseInt(e.target.value);
+    updateCommentPreview();
+  });
+
+  function removeCommentImage() {
+    commentImageData = null;
+    document.getElementById('commentImagePreview').style.display = 'none';
+    document.getElementById('imageSizeControl').style.display = 'none';
+    document.getElementById('commentImageUpload').value = '';
+    updateCommentPreview();
+  }
+
+
+  function showMediaPreview(mediaData) {
+    console.log('showMediaPreview called with:', mediaData.type);
+    
+    if (!mediaData || !mediaData.data) {
+      console.error('Invalid media data');
+      alert('Error: Invalid media data');
+      return;
+    }
+    
+    mediaPreviewContainer.innerHTML = '';
+    
+    try {
+      if (mediaData.type.startsWith('video/')) {
+        previewTitle.textContent = '🎥 Video Preview';
+        const video = document.createElement('video');
+        video.src = mediaData.data;
+        video.controls = true;
+        video.style.width = '100%';
+        video.style.borderRadius = '12px';
+        video.style.background = '#000';
+        mediaPreviewContainer.appendChild(video);
+      } else if (mediaData.type.startsWith('image/')) {
+        previewTitle.textContent = '📷 Image Preview';
+        const img = document.createElement('img');
+        img.src = mediaData.data;
+        img.style.width = '100%';
+        img.style.borderRadius = '12px';
+        img.onerror = () => {
+          console.error('Failed to load image');
+          alert('Error loading image. Please try a different file.');
+        };
+        mediaPreviewContainer.appendChild(img);
+      } else {
+        console.error('Unsupported media type:', mediaData.type);
+        alert('Unsupported file type. Please use images (jpg, png, gif) or videos (mp4, webm).');
+        return;
+      }
+      
+      previewLabel.value = mediaData.name.replace(/\.[^/.]+$/, '');
+      previewCaption.value = '';
+      
+      console.log('Showing media preview panel');
+      mediaPreviewPanel.classList.add('active');
+      setStatus('Media loaded - Review and click "Ready to Place"', 'unsaved');
+    } catch (error) {
+      console.error('Error in showMediaPreview:', error);
+      alert('Error displaying media preview. Please try again.');
+    }
+  }
+
+  document.getElementById('btnCancelMedia').onclick = () => {
+    mediaPreviewPanel.classList.remove('active');
+    mediaReadyIndicator.classList.remove('active');
+    pendingMediaData = null;
+    mediaReadyToPlace = false;
+    document.getElementById('mediaUpload').value = '';
+    setStatus('Media upload cancelled', 'saved');
+  };
+
+  document.getElementById('btnReadyToPlace').onclick = () => {
+    if (!pendingMediaData) {
+      alert('No media loaded. Please upload a file first.');
+      return;
+    }
+    
+    console.log('Media ready to place on map');
+    mediaReadyToPlace = true;
+    mediaPreviewPanel.classList.remove('active');
+    mediaReadyIndicator.classList.add('active');
+    setStatus('✅ Media ready - Click on map to place', 'unsaved');
+  };
+
+  // Comment dialog handlers
+  document.getElementById('btnCancelComment').onclick = () => {
+    commentDialog.style.display = 'none';
+    commentText.value = '';
+    selectedPointForComment = null;
+    mode = 'data';
+    document.getElementById('btnDataMode').click();
+  };
+
+  document.getElementById('btnSaveComment').onclick = () => {
+    if (!selectedPointForComment || !commentText.value.trim()) {
+      alert('Please click on a point and enter a comment');
+      return;
+    }
+    
+    selectedPointForComment.comment = commentText.value.trim();
+    setStatus('Comment added to point', 'unsaved');
+    saveToBrowser();
+    markUnsaved();
+    
+    commentDialog.style.display = 'none';
+    commentText.value = '';
+    selectedPointForComment = null;
+    
+    renderSidebar();
+  };
+
+  viewport.addEventListener('click', e => {
+    if (mode !== 'add' || (e.target !== viewport && e.target !== img && e.target !== container)) return;
+    
+    const rect = container.getBoundingClientRect();
+    const clickX = (e.clientX - rect.left) / scale;
+    const clickY = (e.clientY - rect.top) / scale;
+    
+    if (pointType === 'data') {
+      const row = parseInt(nextIdInput.value);
+      const pData = {
+        type: 'data',
+        row: row,
+        x: clickX,
+        y: clickY,
+        size: currentPointSize
+      };
+      addPoint(pData);
+      nextIdInput.value = row + 1;
+      updateSizePreview();
+    } else if (pointType === 'media' && pendingMediaData && mediaReadyToPlace) {
+      const label = previewLabel.value || pendingMediaData.name;
+      const caption = previewCaption.value || '';
+      
+      const pData = {
+        type: 'media',
+        x: clickX,
+        y: clickY,
+        size: currentPointSize,
+        mediaData: pendingMediaData.data,
+        mediaName: pendingMediaData.name,
+        mediaType: pendingMediaData.type,
+        label: label,
+        caption: caption
+      };
+      addPoint(pData);
+      
+      pendingMediaData = null;
+      mediaReadyToPlace = false;
+      mediaReadyIndicator.classList.remove('active');
+      document.getElementById('mediaUpload').value = '';
+      
+      setStatus('Media point added successfully!', 'saved');
+    }
+    
+    saveToBrowser();
+    markUnsaved();
+  });
+
+  function addPoint(pData) {
+    if (pData.type === 'data' && !points.find(p => p.row === pData.row)) {
+      points.push(pData);
+    } else if (pData.type === 'media') {
+      points.push(pData);
+    }
+    
+    const el = document.createElement('div');
+    el.className = 'point';
+    
+    if (pData.type === 'media') {
+      el.classList.add('media-point');
+      if (pData.mediaType && pData.mediaType.startsWith('video/')) {
+        el.textContent = '🎥';
+      } else {
+        el.textContent = '📷';
+      }
+    } else {
+      el.textContent = pData.row;
+    }
+    
+    el.style.left = pData.x + 'px';
+    el.style.top = pData.y + 'px';
+    el.dataset.id = pData.type === 'data' ? pData.row : points.length;
+    el.dataset.type = pData.type || 'data';
+    el.dataset.size = pData.size || currentPointSize;
+    
+    if (pointType === 'data' && pData.type === 'media') {
+      el.style.display = 'none';
+    } else if (pointType === 'media' && pData.type === 'data') {
+      el.style.display = 'none';
+    }
+    
+    const displaySize = (pData.size || currentPointSize) / scale;
+    el.style.width = displaySize + 'px';
+    el.style.height = displaySize + 'px';
+    
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const confirmText = pData.type === 'media' 
+        ? `Delete media point "${pData.label}"?`
+        : `Delete point ${pData.row}?`;
+      if(confirm(confirmText)) {
+        deletePoint(pData, el);
+      }
+    });
+
+    el.addEventListener('click', e => {
+      if (mode === 'remove') {
+        e.stopPropagation();
+        const confirmText = pData.type === 'media' 
+          ? `Delete media point "${pData.label}"?`
+          : `Delete point ${pData.row}?`;
+        if(confirm(confirmText)) {
+          deletePoint(pData, el);
+        }
+      } else if (mode === 'comment') {
+        e.stopPropagation();
+        selectedPointForComment = pData;
+        commentText.value = pData.comment || '';
+        
+        // Load existing image if available
+        if (pData.commentImage) {
+          commentImageData = pData.commentImage;
+          document.getElementById('commentImageDisplay').src = commentImageData;
+          document.getElementById('commentImagePreview').style.display = 'block';
+          document.getElementById('imageSizeControl').style.display = 'block';
+        } else {
+          commentImageData = null;
+          document.getElementById('commentImagePreview').style.display = 'none';
+          document.getElementById('imageSizeControl').style.display = 'none';
+          document.getElementById('commentImageUpload').value = '';
+        }
+        
+        // Load existing style or use defaults
+        if (pData.commentStyle) {
+          commentStyle = {...pData.commentStyle};
+          
+          // Restore image size if available
+          if (pData.commentStyle.imageSize) {
+            document.getElementById('commentImageSize').value = pData.commentStyle.imageSize;
+          }
+          
+          // Restore drawing points if available
+          if (pData.commentStyle.customPath) {
+            shapeIsClosed = true;
+          }
+        } else {
+          commentStyle = {
+            bgColor: '#f5f3ff',
+            textColor: '#5b21b6',
+            borderWidth: 3,
+            borderColor: '#000000',
+            padding: 16,
+            fontSize: 14,
+            showIcon: true,
+            customPath: null,
+            imageSize: 140
+          };
+          drawingPoints = [];
+          shapeIsClosed = false;
+        }
+        
+        // Update form fields
+        document.getElementById('commentBgColor').value = commentStyle.bgColor;
+        document.getElementById('commentBgColorText').value = commentStyle.bgColor;
+        document.getElementById('commentTextColor').value = commentStyle.textColor;
+        document.getElementById('commentTextColorText').value = commentStyle.textColor;
+        document.getElementById('commentBorderWidth').value = commentStyle.borderWidth;
+        document.getElementById('commentBorderColor').value = commentStyle.borderColor;
+        document.getElementById('commentBorderColorText').value = commentStyle.borderColor;
+        document.getElementById('commentPadding').value = commentStyle.padding;
+        document.getElementById('commentFontSize').value = commentStyle.fontSize;
+        document.getElementById('commentShowIcon').checked = commentStyle.showIcon;
+        
+        redrawCanvas();
+        updateCommentPreview();
+        commentDialog.style.display = 'flex';
+        commentText.focus();
+        
+        const pointLabel = pData.type === 'media' 
+          ? pData.label || 'Media Point'
+          : `Point #${pData.row}`;
+        document.querySelector('#commentDialog h3').textContent = `💬 Design Comment for ${pointLabel}`;
+      }
+    });
+
+    container.appendChild(el);
+    renderSidebar();
+    updateInfoDisplay();
+  }
+
+  function deletePoint(pointData, element) {
+    if (pointData.type === 'data') {
+      points = points.filter(p => !(p.type === 'data' && p.row === pointData.row));
+    } else {
+      const index = points.indexOf(pointData);
+      if (index > -1) points.splice(index, 1);
+    }
+    element.remove();
+    renderSidebar();
+    updateInfoDisplay();
+    saveToBrowser();
+    markUnsaved();
+  }
+
+  function renderSidebar() {
+    const list = document.getElementById('pointList');
+    list.innerHTML = '';
+    
+    if (points.length === 0) {
+      list.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 20px; font-size: 13px;">Click on the map to add points</div>';
+      return;
+    }
+    
+    points.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'log-item';
+      if (p.type === 'media') item.classList.add('media-item');
+      
+      const text = p.type === 'media' 
+        ? `${p.mediaType && p.mediaType.startsWith('video/') ? '🎥' : '📷'} ${p.label || p.mediaName}`
+        : `📍 Point #${p.row}`;
+      
+      const commentBadge = p.comment ? ' <span style="background: #8b5cf6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px;">💬</span>' : '';
+      
+      item.innerHTML = `<span>${text}${commentBadge}</span><span class="del-btn">×</span>`;
+      
+      item.querySelector('.del-btn').onclick = () => {
+        const confirmText = p.type === 'media' ? `Delete media point "${p.label}"?` : `Delete point ${p.row}?`;
+        if (confirm(confirmText)) {
+          const el = p.type === 'data'
+            ? document.querySelector(`.point[data-id="${p.row}"][data-type="data"]`)
+            : Array.from(document.querySelectorAll('.point[data-type="media"]'))[points.filter(pt => pt.type === 'media').indexOf(p)];
+          if (el) deletePoint(p, el);
+        }
+      };
+      
+      list.appendChild(item);
+    });
+  }
+
+  document.getElementById('btnSaveViewport').onclick = () => {
+    savedViewport = { scale: scale, x: x, y: y, pointSize: currentPointSize };
+    document.getElementById('savedViewSection').style.display = 'block';
+    document.getElementById('savedZoom').textContent = Math.round(scale * 100) + '%';
+    document.getElementById('savedSize').textContent = currentPointSize + 'px';
+    document.getElementById('btnSaveViewport').classList.add('saved');
+    saveToBrowser();
+    setStatus('Viewport saved!', 'saved');
+  };
+
+  const STORAGE_KEY = 'floor_editor_v2_professional';
+  
+  function saveToBrowser() {
+    const data = {
+      points: points,
+      viewport: savedViewport,
+      pointSize: currentPointSize,
+      nextId: parseInt(nextIdInput.value)
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+  
+  function loadFromBrowser() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      
+      if (data.points) {
+        data.points.forEach(p => addPoint(p));
+        const maxId = data.points.filter(p => p.type === 'data').reduce((max, p) => p.row > max ? p.row : max, 0);
+        nextIdInput.value = data.nextId || (maxId + 1);
+      }
+      
+      if (data.viewport) {
+        savedViewport = data.viewport;
+        document.getElementById('savedViewSection').style.display = 'block';
+        document.getElementById('savedZoom').textContent = Math.round(data.viewport.scale * 100) + '%';
+        document.getElementById('savedSize').textContent = (data.viewport.pointSize || 24) + 'px';
+      }
+      
+      if (data.pointSize) {
+        currentPointSize = data.pointSize;
+        pointSizeSlider.value = currentPointSize;
+        pointSizeInput.value = currentPointSize;
+        updateSizePreview();
+      }
+      
+      setStatus('Loaded from browser storage', 'saved');
+    }
+  }
+
+  function setStatus(text, type) {
+    document.getElementById('statusText').textContent = text;
+    document.getElementById('statusDot').className = 'status-dot ' + type;
+  }
+  
+  function markUnsaved() {
+    hasUnsavedChanges = true;
+    setStatus('Unsaved changes', 'unsaved');
+  }
+
+  document.getElementById('btnSave').onclick = async () => {
+    let plateInfo = [];
+    try {
+      const res = await fetch('plate_data.json');
+      plateInfo = await res.json();
+    } catch (e) {
+      console.log("No plate_data.json found");
+    }
+
+    const finalData = {
+      viewportState: savedViewport || {
+        scale: scale,
+        x: x,
+        y: y,
+        pointSize: currentPointSize
+      },
+      
+      points: points.map(pt => {
+        if (pt.type === 'media') {
+          return {
+            type: 'media',
+            x: pt.x,
+            y: pt.y,
+            size: pt.size || currentPointSize,
+            mediaData: pt.mediaData,
+            mediaName: pt.mediaName,
+            mediaType: pt.mediaType,
+            label: pt.label,
+            caption: pt.caption,
+            comment: pt.comment || '',
+            commentStyle: pt.commentStyle || null,
+            commentImage: pt.commentImage || null
+          };
+        } else {
+          const info = plateInfo[pt.row - 1] || {};
+          return {
+            type: 'data',
+            row: pt.row,
+            x: pt.x,
+            y: pt.y,
+            size: pt.size || currentPointSize,
+            plate: info.plate || `Plate ${pt.row}`,
+            signals: info.signals || { "Signal": -Math.floor(Math.random()*40+50) },
+            comment: pt.comment || '',
+            commentStyle: pt.commentStyle || null,
+            commentImage: pt.commentImage || null
+          };
+        }
+      })
+    };
+
+    const blob = new Blob([JSON.stringify(finalData, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'floor_full_data.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    hasUnsavedChanges = false;
+    setStatus('Exported successfully!', 'saved');
+    
+    const dataCount = points.filter(p => p.type === 'data').length;
+    const mediaCount = points.filter(p => p.type === 'media').length;
+    
+    alert(`✅ File Downloaded!\n\nThe JSON includes:\n• ${dataCount} data points\n• ${mediaCount} media points\n• Initial viewport settings\n• Point sizes\n\nPlace 'floor_full_data.json' in your project folder.`);
+  };
+
+  document.getElementById('btnPlus').onclick = () => zoom(1.2);
+  document.getElementById('btnMinus').onclick = () => zoom(0.8);
+  document.getElementById('btnFit').onclick = fitToScreen;
+
+  // ============ CANVAS DRAWING FUNCTIONS ============
+  
+  function initCanvas() {
+    canvas = document.getElementById('bubbleCanvas');
+    ctx = canvas.getContext('2d');
+    
+    canvas.addEventListener('click', handleCanvasClick);
+    redrawCanvas();
+  }
+  
+  function handleCanvasClick(e) {
+    if (!isDrawingMode) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    drawingPoints.push({x, y});
+    redrawCanvas();
+  }
+  
+  function startDrawing() {
+    isDrawingMode = true;
+    shapeIsClosed = false;
+    document.getElementById('drawBtn').style.background = '#ef4444';
+    document.getElementById('drawBtn').textContent = '🛑 Stop Drawing';
+    document.getElementById('drawBtn').onclick = stopDrawing;
+  }
+  
+  function stopDrawing() {
+    isDrawingMode = false;
+    document.getElementById('drawBtn').style.background = '#10b981';
+    document.getElementById('drawBtn').textContent = '✏️ Draw/Edit Shape';
+    document.getElementById('drawBtn').onclick = startDrawing;
+  }
+  
+  function clearCanvas() {
+    drawingPoints = [];
+    shapeIsClosed = false;
+    commentStyle.customPath = null;
+    redrawCanvas();
+    updateCommentPreview();
+  }
+  
+  function undoLastPoint() {
+    if (drawingPoints.length > 0) {
+      drawingPoints.pop();
+      shapeIsClosed = false;
+      redrawCanvas();
+      updateCommentPreview();
+    }
+  }
+  
+  function closeShape() {
+    if (drawingPoints.length < 3) {
+      alert('Draw at least 3 points before closing the shape!');
+      return;
+    }
+    
+    shapeIsClosed = true;
+    isDrawingMode = false;
+    document.getElementById('drawBtn').style.background = '#10b981';
+    document.getElementById('drawBtn').textContent = '✏️ Draw/Edit Shape';
+    document.getElementById('drawBtn').onclick = startDrawing;
+    
+    generateSVGPath();
+    redrawCanvas();
+    updateCommentPreview();
+  }
+  
+  function redrawCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (drawingPoints.length === 0) return;
+    
+    // Draw the shape
+    ctx.beginPath();
+    ctx.moveTo(drawingPoints[0].x, drawingPoints[0].y);
+    
+    for (let i = 1; i < drawingPoints.length; i++) {
+      ctx.lineTo(drawingPoints[i].x, drawingPoints[i].y);
+    }
+    
+    if (shapeIsClosed) {
+      ctx.closePath();
+      ctx.fillStyle = commentStyle.bgColor;
+      ctx.fill();
+    }
+    
+    ctx.strokeStyle = commentStyle.borderColor;
+    ctx.lineWidth = commentStyle.borderWidth;
+    ctx.stroke();
+    
+    // Draw points
+    drawingPoints.forEach((pt, i) => {
+      ctx.fillStyle = i === 0 ? '#10b981' : '#3b82f6';
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+  
+  function generateSVGPath() {
+    if (drawingPoints.length < 3) return;
+    
+    // Normalize points to viewBox 0-100
+    const minX = Math.min(...drawingPoints.map(p => p.x));
+    const minY = Math.min(...drawingPoints.map(p => p.y));
+    const maxX = Math.max(...drawingPoints.map(p => p.x));
+    const maxY = Math.max(...drawingPoints.map(p => p.y));
+    
+    const width = maxX - minX;
+    const height = maxY - minY;
+    
+    const normalized = drawingPoints.map(p => ({
+      x: ((p.x - minX) / width) * 100,
+      y: ((p.y - minY) / height) * 100
+    }));
+    
+    let pathData = `M ${normalized[0].x} ${normalized[0].y}`;
+    for (let i = 1; i < normalized.length; i++) {
+      pathData += ` L ${normalized[i].x} ${normalized[i].y}`;
+    }
+    pathData += ' Z';
+    
+    commentStyle.customPath = {
+      path: pathData,
+      viewBox: `0 0 100 100`,
+      aspectRatio: width / height
+    };
+  }
+  
+  function loadPreset(type) {
+    shapeIsClosed = true;
+    
+    switch(type) {
+      case 'rectangle':
+        commentStyle.customPath = {
+          path: 'M 5 5 L 95 5 L 95 95 L 5 95 Z',
+          viewBox: '0 0 100 100',
+          aspectRatio: 1
+        };
+        drawingPoints = [{x:20,y:20}, {x:380,y:20}, {x:380,y:280}, {x:20,y:280}];
+        break;
+        
+      case 'rounded':
+        commentStyle.customPath = {
+          path: 'M 20 5 L 80 5 Q 95 5 95 20 L 95 80 Q 95 95 80 95 L 20 95 Q 5 95 5 80 L 5 20 Q 5 5 20 5 Z',
+          viewBox: '0 0 100 100',
+          aspectRatio: 1
+        };
+        drawingPoints = [{x:80,y:20}, {x:320,y:20}, {x:380,y:80}, {x:380,y:220}, {x:320,y:280}, {x:80,y:280}, {x:20,y:220}, {x:20,y:80}];
+        break;
+        
+      case 'cloud':
+        commentStyle.customPath = {
+          path: 'M 30 50 Q 30 30 50 30 Q 60 20 75 30 Q 90 30 90 50 Q 95 60 85 70 Q 90 85 75 85 Q 70 95 50 85 Q 30 85 30 70 Q 20 60 30 50 Z',
+          viewBox: '0 0 100 100',
+          aspectRatio: 1.2
+        };
+        drawingPoints = [{x:120,y:150}, {x:200,y:90}, {x:300,y:90}, {x:360,y:150}, {x:340,y:210}, {x:300,y:260}, {x:200,y:260}, {x:120,y:210}];
+        break;
+        
+      case 'bubble-left':
+        commentStyle.customPath = {
+          path: 'M 25 10 L 90 10 Q 95 10 95 15 L 95 85 Q 95 90 90 90 L 25 90 L 5 95 L 15 75 L 15 15 Q 15 10 25 10 Z',
+          viewBox: '0 0 100 100',
+          aspectRatio: 0.9
+        };
+        drawingPoints = [{x:100,y:30}, {x:360,y:30}, {x:380,y:50}, {x:380,y:250}, {x:360,y:270}, {x:100,y:270}, {x:20,y:285}, {x:60,y:225}, {x:60,y:50}];
+        break;
+        
+      case 'bubble-bottom':
+        commentStyle.customPath = {
+          path: 'M 10 10 L 90 10 Q 95 10 95 15 L 95 70 L 55 70 L 50 90 L 45 70 L 10 70 Q 5 70 5 65 L 5 15 Q 5 10 10 10 Z',
+          viewBox: '0 0 100 100',
+          aspectRatio: 1.1
+        };
+        drawingPoints = [{x:40,y:30}, {x:360,y:30}, {x:380,y:50}, {x:380,y:210}, {x:220,y:210}, {x:200,y:270}, {x:180,y:210}, {x:40,y:210}, {x:20,y:190}, {x:20,y:50}];
+        break;
+        
+      case 'ellipse':
+        commentStyle.customPath = {
+          path: 'M 50 5 Q 80 5 95 25 Q 105 50 95 75 Q 80 95 50 95 Q 20 95 5 75 Q -5 50 5 25 Q 20 5 50 5 Z',
+          viewBox: '0 0 100 100',
+          aspectRatio: 1
+        };
+        drawingPoints = [{x:200,y:20}, {x:320,y:60}, {x:380,y:150}, {x:320,y:240}, {x:200,y:280}, {x:80,y:240}, {x:20,y:150}, {x:80,y:60}];
+        break;
+    }
+    
+    redrawCanvas();
+    updateCommentPreview();
+  }
+
+  // ============ COMMENT PREVIEW FUNCTIONS ============
+  
+  function updateCommentPreview() {
+    const preview = document.getElementById('commentPreview');
+    const text = document.getElementById('commentText').value || 'Your comment will appear here...';
+    
+    let shapeHTML = '';
+    
+    if (commentStyle.customPath) {
+      const width = 300;
+      const height = width / (commentStyle.customPath.aspectRatio || 1);
+      
+      const iconHTML = commentStyle.showIcon ? `
+        <div style="position: absolute; top: ${commentStyle.padding}px; left: ${commentStyle.padding}px; right: ${commentStyle.padding}px; font-size: 10px; text-transform: uppercase; color: ${commentStyle.textColor}; font-weight: 700; opacity: 0.8; z-index: 2;">
+          💬 Comment
+        </div>
+      ` : '';
+      
+      const imageHTML = commentImageData ? `
+        <div style="position: absolute; top: ${commentStyle.padding}px; left: ${commentStyle.padding}px; width: ${commentStyle.imageSize}px; height: ${commentStyle.imageSize}px; z-index: 3;">
+          <img src="${commentImageData}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">
+        </div>
+      ` : '';
+      
+      const textMarginTop = commentStyle.showIcon ? 20 : 0;
+      const textMarginLeft = commentImageData ? (commentStyle.imageSize + 20) : 0;
+      
+      // Calculate proper width based on image size to prevent text overflow
+      const finalWidth = commentImageData ? Math.max(500, commentStyle.imageSize + 250) : width;
+      const finalHeight = finalWidth / (commentStyle.customPath.aspectRatio || 1);
+      
+      shapeHTML = `
+        <div style="position: relative; width: ${finalWidth}px; height: ${finalHeight}px;">
+          <svg width="${finalWidth}" height="${finalHeight}" viewBox="${commentStyle.customPath.viewBox}" style="position: absolute; top: 0; left: 0;">
+            <path d="${commentStyle.customPath.path}" 
+                  fill="${commentStyle.bgColor}" 
+                  stroke="${commentStyle.borderColor}" 
+                  stroke-width="${commentStyle.borderWidth / 30}" 
+                  stroke-linejoin="round" 
+                  stroke-linecap="round"/>
+          </svg>
+          ${imageHTML}
+          ${iconHTML}
+          <div style="
+            position: absolute;
+            top: ${commentStyle.padding + textMarginTop}px;
+            left: ${commentStyle.padding + textMarginLeft}px;
+            right: ${commentStyle.padding}px;
+            bottom: ${commentStyle.padding}px;
+            color: ${commentStyle.textColor};
+            font-size: ${commentStyle.fontSize}px;
+            font-weight: 500;
+            line-height: 1.5;
+            overflow: hidden;
+            z-index: 1;
+          ">
+            ${text}
+          </div>
+        </div>
+      `;
+    } else {
+      shapeHTML = `
+        <div style="
+          background: #f0f0f0;
+          border: 2px dashed #999;
+          border-radius: 8px;
+          padding: 20px;
+          color: #666;
+          text-align: center;
+          font-size: 14px;
+        ">
+          👆 Draw a shape on the canvas or choose a preset
+        </div>
+      `;
+    }
+    
+    preview.innerHTML = shapeHTML;
+  }
+  
+  // Style control event listeners
+  document.getElementById('commentText').addEventListener('input', updateCommentPreview);
+  
+  document.getElementById('commentBgColor').addEventListener('input', (e) => {
+    commentStyle.bgColor = e.target.value;
+    document.getElementById('commentBgColorText').value = e.target.value;
+    redrawCanvas();
+    updateCommentPreview();
+  });
+  
+  document.getElementById('commentBgColorText').addEventListener('input', (e) => {
+    commentStyle.bgColor = e.target.value;
+    document.getElementById('commentBgColor').value = e.target.value;
+    redrawCanvas();
+    updateCommentPreview();
+  });
+  
+  document.getElementById('commentTextColor').addEventListener('input', (e) => {
+    commentStyle.textColor = e.target.value;
+    document.getElementById('commentTextColorText').value = e.target.value;
+    updateCommentPreview();
+  });
+  
+  document.getElementById('commentTextColorText').addEventListener('input', (e) => {
+    commentStyle.textColor = e.target.value;
+    document.getElementById('commentTextColor').value = e.target.value;
+    updateCommentPreview();
+  });
+  
+  document.getElementById('commentBorderWidth').addEventListener('input', (e) => {
+    commentStyle.borderWidth = parseInt(e.target.value);
+    redrawCanvas();
+    updateCommentPreview();
+  });
+  
+  document.getElementById('commentBorderColor').addEventListener('input', (e) => {
+    commentStyle.borderColor = e.target.value;
+    document.getElementById('commentBorderColorText').value = e.target.value;
+    redrawCanvas();
+    updateCommentPreview();
+  });
+  
+  document.getElementById('commentBorderColorText').addEventListener('input', (e) => {
+    commentStyle.borderColor = e.target.value;
+    document.getElementById('commentBorderColor').value = e.target.value;
+    redrawCanvas();
+    updateCommentPreview();
+  });
+  
+  document.getElementById('commentPadding').addEventListener('input', (e) => {
+    commentStyle.padding = parseInt(e.target.value);
+    updateCommentPreview();
+  });
+  
+  document.getElementById('commentFontSize').addEventListener('input', (e) => {
+    commentStyle.fontSize = parseInt(e.target.value);
+    updateCommentPreview();
+  });
+  
+  document.getElementById('commentShowIcon').addEventListener('change', (e) => {
+    commentStyle.showIcon = e.target.checked;
+    updateCommentPreview();
+  });
+  
+  document.getElementById('btnCancelComment').onclick = () => {
+    commentDialog.style.display = 'none';
+    selectedPointForComment = null;
+    commentImageData = null;
+    document.getElementById('commentImagePreview').style.display = 'none';
+    document.getElementById('commentImageUpload').value = '';
+    clearCanvas();
+  };
+  
+  document.getElementById('btnSaveComment').onclick = () => {
+    if (!selectedPointForComment) {
+      alert('No point selected!');
+      return;
+    }
+    
+    if (!document.getElementById('commentText').value.trim()) {
+      alert('Please enter a comment text!');
+      return;
+    }
+    
+    if (!commentStyle.customPath) {
+      alert('Please draw a shape or choose a preset!');
+      return;
+    }
+    
+    selectedPointForComment.comment = document.getElementById('commentText').value.trim();
+    selectedPointForComment.commentStyle = {...commentStyle};
+    selectedPointForComment.commentImage = commentImageData; // Save image
+    
+    commentDialog.style.display = 'none';
+    selectedPointForComment = null;
+    commentImageData = null;
+    clearCanvas();
+    renderSidebar();
+    saveToBrowser();
+    markUnsaved();
+    setStatus('Comment saved!', 'saved');
+  };
+
+  // ============ REMOVE OPTIONS FUNCTIONS ============
+  
+  function showRemoveOptions() {
+    const dialog = document.getElementById('removeDialog');
+    dialog.classList.add('active');
+  }
+  
+  function closeRemoveDialog() {
+    const dialog = document.getElementById('removeDialog');
+    dialog.classList.remove('active');
+  }
+  
+  function removeSpecificPoint() {
+    closeRemoveDialog();
+    
+    // Activate remove mode
+    const btnRemove = document.getElementById('btnRemoveMode');
+    btnRemove.classList.add('active');
+    document.getElementById('btnDataMode').classList.remove('active');
+    document.getElementById('btnMediaMode').classList.remove('active');
+    document.getElementById('btnCommentMode').classList.remove('active');
+    
+    currentMode = 'remove';
+    
+    setStatus('🎯 Remove mode active - Click on points to remove them', 'unsaved');
+  }
+  
+  function confirmRemoveAll() {
+    const confirmation = confirm(
+      `⚠️ WARNING: This will permanently delete ALL data!\n\n` +
+      `This includes:\n` +
+      `• ${points.length} data point(s)\n` +
+      `• All media attachments\n` +
+      `• All comments\n` +
+      `• Saved viewport settings\n\n` +
+      `This action CANNOT be undone!\n\n` +
+      `Are you absolutely sure you want to continue?`
+    );
+    
+    if (confirmation) {
+      // Double confirmation for safety
+      const doubleCheck = confirm(
+        `⚠️ FINAL CONFIRMATION\n\n` +
+        `You are about to delete everything. This is your last chance to cancel.\n\n` +
+        `Click OK to DELETE ALL DATA or Cancel to keep your data.`
+      );
+      
+      if (doubleCheck) {
+        removeAllData();
+      }
+    }
+    
+    closeRemoveDialog();
+  }
+  
+  function removeAllData() {
+    // Clear all points
+    points = [];
+    
+    // Clear saved viewport
+    savedViewport = null;
+    localStorage.removeItem('savedViewport');
+    document.getElementById('savedViewSection').style.display = 'none';
+    
+    // Update UI
+    renderSidebar();
+    saveToBrowser();
+    markUnsaved();
+    
+    // Reset next ID
+    nextIdInput.value = 1;
+    
+    // Update status
+    setStatus('🗑️ All data has been removed', 'saved');
+    
+    // Show confirmation message
+    setTimeout(() => {
+      alert('✓ All data has been successfully removed.\n\nThe map is now empty and ready for new data.');
+    }, 100);
+  }
+
+  window.onload = () => {
+    fitToScreen();
+    loadFromBrowser();
+    initCanvas();
+    updateCommentPreview();
+  };
+
+  window.onbeforeunload = () => {
+    if (hasUnsavedChanges) return "You have unsaved changes. Are you sure you want to leave?";
+  };
+</script>
+</body>
+</html>

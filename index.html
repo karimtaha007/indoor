@@ -1,0 +1,3226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>PaldiBlind - Indoor Navigation System</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+/* ================= GLOBAL & RESET ================= */
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #f5f1e8;
+  color: #1f2937;
+  height: 100vh; width: 100vw;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* ================= HEADER ================= */
+.header {
+  background: #fefce8;
+  height: auto;
+  min-height: 70px;
+  padding: 10px 30px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  border-bottom: 3px solid #fde047;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+  position: relative;
+  gap: 15px;
+}
+.header.data-mode { border-bottom: 4px solid #06b6d4; }
+.header.media-mode { border-bottom: 4px solid #f59e0b; }
+.header.graph-mode { border-bottom: 4px solid #8b5cf6; }
+.header.components-mode { border-bottom: 4px solid #10b981; } 
+
+.header-left { display: flex; align-items: center; gap: 12px; margin-right: auto; }
+.header-right { display: flex; gap: 8px; margin-left: auto; }
+
+.app-icon { width: 42px; height: 42px; background: #475569; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #ec4899; }
+.app-title h1 { color: #2d3748; font-size: 18px; font-weight: 700; margin: 0; }
+.app-subtitle { color: #9ca3af; font-size: 11px; text-transform: uppercase; font-weight: 600; }
+.count-badge { background: #f59e0b; color: white; padding: 4px 12px; border-radius: 16px; font-size: 13px; font-weight: 600; }
+
+/* Mode Toggle */
+.mode-container { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mode-label { color: #6b7280; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.mode-toggle { 
+  background: #f3f4f6; 
+  padding: 4px; 
+  border-radius: 10px; 
+  display: flex; 
+}
+.mode-btn { 
+  background: transparent; 
+  color: #6b7280; 
+  border: none; 
+  padding: 8px 16px; 
+  border-radius: 8px; 
+  font-weight: 600; 
+  cursor: pointer; 
+  min-width: 90px; 
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.mode-btn.active { background: #06b6d4; color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+/* Specific Colors for Active Buttons */
+.mode-btn#btnMediaMode.active { background: #f59e0b; }
+.mode-btn#btnGraphMode.active { background: #8b5cf6; }
+.mode-btn#btnComponentsMode.active { background: #10b981; }
+
+/* Graph Sub-Controls (Visible only in Graph Mode) */
+.graph-controls {
+  display: none;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  gap: 8px;
+  align-items: center;
+  animation: fadeIn 0.3s ease;
+  flex-wrap: wrap;
+}
+.header.graph-mode .graph-controls { display: flex; }
+
+/* Range Selector */
+.range-selector {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+}
+.range-selector.visible { display: flex; }
+.range-label { font-size: 11px; font-weight: 600; color: #64748b; }
+.range-input {
+  width: 50px;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+.apply-range-btn {
+  padding: 4px 12px;
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.apply-range-btn:hover { background: #7c3aed; }
+
+.sub-mode-btn {
+  padding: 6px 12px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-weight: 600; color: #64748b;
+}
+.sub-mode-btn.active { background: #8b5cf6; color: white; border-color: #7c3aed; }
+.clear-graph-btn { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+.clear-graph-btn:hover { background: #fecaca; }
+
+/* Buttons */
+.btn { 
+  background: #ffffff; 
+  color: #4b5563; 
+  border: 1px solid #e5e7eb; 
+  width: 38px; 
+  height: 38px; 
+  border-radius: 8px; 
+  font-size: 16px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  cursor: pointer; 
+  font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.btn:hover, .btn:active { 
+  background: #cffafe; 
+  color: #0891b2; 
+}
+.btn.reset-btn { 
+  width: auto; 
+  padding: 0 16px; 
+  font-size: 13px; 
+}
+
+/* ================= VIEWPORT ================= */
+#viewport { 
+  flex: 1; 
+  position: relative; 
+  overflow: hidden; 
+  background: #faf8f3; 
+  cursor: grab; 
+  width: 100%;
+  height: 100%;
+}
+#viewport.grabbing { cursor: grabbing; }
+#map-container { 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  transform-origin: 0 0; 
+  will-change: transform;
+  width: 100%;
+  height: 100%;
+}
+#floorImage { 
+  display: block; 
+  pointer-events: none; 
+  user-select: none; 
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  max-width: none;
+  height: auto;
+}
+
+/* ================= POINTS ================= */
+.point {
+  position: absolute; background: #ffffff; border: 3px solid #06b6d4; color: #111827;
+  border-radius: 50%; transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; cursor: pointer; z-index: 10;
+  box-shadow: 0 3px 10px rgba(6, 182, 212, 0.4);
+  width: 24px; height: 24px; font-size: 10px;
+  transition: transform 0.2s, border-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Larger hit area for touch on mobile */
+@media (hover: none) and (pointer: coarse) {
+  .point::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    border-radius: 50%;
+  }
+}
+
+.point.media-point { border-color: #f59e0b; box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3); }
+.point.graph-point { border-color: #8b5cf6; box-shadow: 0 3px 10px rgba(139, 92, 246, 0.3); color: #6d28d9; }
+.point.command-point { background: #9333ea; color: white; border-color: #581c87; }
+
+.point:hover { transform: translate(-50%, -50%) scale(1.3); z-index: 100; }
+
+.point.active { 
+  border-color: #0891b2; z-index: 20; 
+  transform: translate(-50%, -50%) scale(1.5) !important; 
+  box-shadow: 0 0 0 6px rgba(6,182,212,0.3); 
+}
+.point.multi-active {
+  border-color: #7c3aed; background: #f3e8ff;
+  transform: translate(-50%, -50%) scale(1.4) !important;
+  box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.4);
+}
+
+/* ================= BOTTOM SHEET ================= */
+.bottom-sheet {
+  position: fixed; left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 90%; max-width: 320px;
+  max-height: 85vh;
+  background: white; border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  opacity: 0; pointer-events: none;
+  transition: all 0.3s ease;
+  display: flex; flex-direction: column;
+  z-index: 1000;
+  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
+}
+.bottom-sheet.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+
+/* Expanded Viewers */
+.bottom-sheet.media-viewer, .bottom-sheet.graph-viewer { 
+  max-width: 95vw; 
+  width: 95vw; 
+  max-height: 90vh;
+  background: #fff; 
+}
+.bottom-sheet.media-viewer .sheet-content, .bottom-sheet.graph-viewer .sheet-content { 
+  display: flex; 
+  flex-direction: column; 
+  padding: 0; 
+  background: #fff; 
+  height: 100%; 
+  justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sheet-header { 
+  padding: 12px 16px; 
+  border-bottom: 2px solid #f3f4f6; 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  background: linear-gradient(135deg, #fef3c7, #fde68a); 
+  border-radius: 16px 16px 0 0; 
+}
+.sheet-title { display: flex; align-items: center; gap: 10px; }
+.sheet-id { font-size: 18px; font-weight: 800; color: #d97706; font-family: monospace; }
+.sheet-name { font-size: 13px; font-weight: 700; color: #78350f; text-transform: uppercase; }
+.close-btn { 
+  width: 28px; height: 28px; border-radius: 50%; 
+  background: rgba(255,255,255,0.5); border: none; 
+  font-size: 18px; color: #78350f; cursor: pointer; 
+  display: flex; align-items: center; justify-content: center; 
+}
+
+.sheet-content { 
+  padding: 12px; 
+  overflow-y: auto; 
+  flex: 1; 
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap: 6px; 
+  align-content: start; 
+}
+
+/* ================= SIGNAL BOXES ================= */
+.signal-box { 
+  background: #ffffff; 
+  padding: 8px 4px; 
+  border-radius: 8px; 
+  border: 2px solid #cbd5e1; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center; 
+  text-align: center; 
+}
+.signal-box.main-signal { 
+  grid-column: 1 / -1; 
+  background: #f0f9ff; 
+  border-color: #06b6d4; 
+  padding: 10px; 
+}
+.signal-name { 
+  font-size: 9px; 
+  font-weight: 700; 
+  color: #64748b; 
+  text-transform: uppercase; 
+}
+.signal-value { 
+  font-size: 18px; 
+  font-weight: 900; 
+  font-family: monospace; 
+}
+.val-green { color: #059669; } 
+.val-yellow { color: #d97706; } 
+.val-red { color: #dc2626; }
+
+/* ================= GRAPH CONTAINER ================= */
+.graph-container {
+  width: 100%;
+  height: 600px;
+  padding: 20px;
+  position: relative;
+}
+
+/* ================= COMMENT BOX ================= */
+.comment-side-box {
+  position: fixed; 
+  right: calc(50% + 180px);
+  top: 50%; 
+  transform: translateY(-50%);
+  width: 420px; 
+  max-width: 600px; 
+  min-height: 200px;
+  max-height: 500px;
+  display: none; 
+  align-items: center; 
+  justify-content: center;
+  z-index: 1100;
+  opacity: 0; 
+  pointer-events: none; 
+  transition: opacity 0.3s ease, width 0.3s ease;
+}
+
+/* Responsive positioning for smaller screens */
+@media (max-width: 1400px) {
+  .comment-side-box {
+    right: calc(50% + 170px);
+  }
+}
+
+@media (max-width: 1200px) {
+  .comment-side-box {
+    right: 10px;
+    max-width: 500px;
+  }
+}
+
+.comment-side-box.visible { 
+  display: flex;
+  opacity: 1; 
+  pointer-events: auto; 
+}
+
+.comment-svg-bg { 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%; 
+  z-index: 0; 
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.15)); 
+}
+.comment-svg-bg path { 
+  fill: #fff; 
+  stroke: #7c3aed; 
+  stroke-width: 3px; 
+}
+
+.comment-text-content { 
+  position: relative; 
+  z-index: 1; 
+  padding: 25px; 
+  color: #5b21b6; 
+  font-weight: 600; 
+  font-size: 14px; 
+  line-height: 1.6;
+  overflow: visible;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+  width: 100%; 
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* Arrow Pointer - POINTING RIGHT TO TABLE */
+.comment-arrow {
+  position: absolute;
+  right: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0; 
+  height: 0;
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-left: 18px solid #7c3aed;
+  z-index: 2;
+}
+.comment-arrow::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  top: -12px;
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-left: 18px solid #fff;
+}
+
+@keyframes fadeIn { 
+  from { opacity: 0; transform: translateY(-5px); } 
+  to { opacity: 1; transform: translateY(0); } 
+}
+
+/* ================= COMPONENTS MODE ================= */
+.components-fullpage {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(5px);
+  z-index: 400;
+  overflow: hidden;
+  display: none;
+  padding: 20px;
+}
+
+.components-fullpage.visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.component-showcase {
+  width: 100%;
+  max-width: 1300px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.component-showcase-item {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  display: grid;
+  grid-template-columns: 520px 1fr;
+  gap: 30px;
+  align-items: start;
+  min-height: 400px;
+  overflow: visible;
+}
+
+.component-image-section {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.component-showcase-image {
+  width: 520px;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+  border: 3px solid #e5e7eb;
+}
+
+.component-text-section {
+  height: 100%;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+}
+
+.component-showcase-header {
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.component-showcase-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.component-showcase-title .icon {
+  font-size: 28px;
+}
+
+.component-showcase-type {
+  font-size: 12px;
+  color: #10b981;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.component-showcase-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #374151;
+  margin: 10px 0;
+  padding: 12px;
+  background: #f0fdf4;
+  border-left: 3px solid #10b981;
+  border-radius: 6px;
+  flex: 1;
+  overflow: visible;
+}
+
+
+@media (max-width: 1400px) {
+  .component-showcase-item {
+    grid-template-columns: 450px 1fr;
+  }
+  
+  .component-showcase-image {
+    width: 450px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .component-showcase-item {
+    grid-template-columns: 380px 1fr;
+  }
+  
+  .component-showcase-image {
+    width: 380px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .component-showcase-item {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: auto;
+    max-height: none;
+  }
+  
+  .component-image-section {
+    height: auto;
+    max-height: 300px;
+  }
+  
+  .component-showcase-image {
+    width: 100%;
+    max-width: 100%;
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .components-fullpage {
+    padding: 15px;
+    top: 0;
+    padding-top: 80px;
+  }
+  
+  .component-showcase {
+    gap: 15px;
+    padding: 0;
+  }
+  
+  .component-showcase-item {
+    padding: 15px;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    min-height: auto;
+  }
+  
+  .component-showcase-title {
+    font-size: 18px;
+  }
+  
+  .component-showcase-type {
+    font-size: 11px;
+  }
+  
+  .component-image-section {
+    height: auto;
+    max-height: 250px;
+  }
+  
+  .component-showcase-image {
+    width: 100%;
+    max-width: 100%;
+    max-height: 250px;
+    object-fit: contain;
+  }
+  
+  .component-showcase-description {
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 10px;
+  }
+}
+
+.components-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+}
+
+.component-card {
+  background: #f9fafb;
+  border: 2px solid #10b981;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+  transition: all 0.3s;
+}
+
+.component-card:hover {
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2);
+  transform: translateY(-2px);
+}
+
+.component-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #d1fae5;
+}
+
+.component-icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.component-info {
+  flex: 1;
+}
+
+.component-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 4px 0;
+}
+
+.component-type {
+  font-size: 12px;
+  color: #059669;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.component-image {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 12px;
+  margin: 15px 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.component-specs {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  margin-top: 15px;
+}
+
+.spec-row {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+}
+
+.spec-row:last-child {
+  border-bottom: none;
+}
+
+.spec-label {
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.spec-value {
+  color: #111827;
+  flex: 1;
+  font-weight: 500;
+}
+
+.component-description {
+  background: #ecfdf5;
+  padding: 15px;
+  border-radius: 10px;
+  margin-top: 15px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #064e3b;
+  border-left: 4px solid #10b981;
+}
+
+@media (max-width: 768px) {
+  .components-list {
+    padding: 15px;
+    gap: 15px;
+  }
+
+  .component-card {
+    padding: 15px;
+  }
+
+  .component-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+
+  .component-name {
+    font-size: 16px;
+  }
+
+  .spec-label {
+    min-width: 110px;
+    font-size: 12px;
+  }
+
+  .spec-value {
+    font-size: 12px;
+  }
+
+  .component-description {
+    font-size: 13px;
+    padding: 12px;
+  }
+}
+
+/* ================= WELCOME DIALOG ================= */
+.welcome-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  padding: 20px;
+}
+.welcome-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+  display: none;
+}
+.welcome-dialog {
+  background: white;
+  border-radius: 16px;
+  width: 550px;
+  height: auto;
+  max-height: 90vh;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  animation: slideUp 0.4s ease;
+  overflow: visible;
+  display: block;
+}
+
+/* Welcome pages - NO horizontal scrolling */
+.welcome-pages {
+  position: relative;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+}
+.welcome-page {
+  width: 100%;
+  display: none;
+}
+.welcome-page.active {
+  display: block;
+}
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.welcome-header {
+  background: linear-gradient(135deg, #2d6a4f, #40916c);
+  padding: 15px;
+  text-align: center;
+  color: white;
+  border-radius: 16px 16px 0 0;
+}
+.welcome-logo {
+  width: 60px;
+  height: auto;
+  margin: 0 auto 8px;
+  display: block;
+  filter: brightness(1.1);
+}
+.welcome-header h1 {
+  font-size: 18px;
+  margin: 0 0 4px 0;
+  font-weight: 800;
+}
+.welcome-header h2 {
+  font-size: 13px;
+  margin: 0;
+  font-weight: 500;
+  opacity: 0.95;
+}
+.welcome-content {
+  padding: 15px;
+  background: white;
+}
+.welcome-section {
+  margin-bottom: 10px;
+}
+.welcome-section h3 {
+  color: #1f2937;
+  font-size: 14px;
+  margin: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+}
+.welcome-section p {
+  color: #374151;
+  line-height: 1.4;
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+.welcome-section p:last-child {
+  margin-bottom: 0;
+}
+.welcome-section ul {
+  margin: 5px 0 0 0;
+  padding-left: 16px;
+}
+.welcome-section li {
+  color: #374151;
+  line-height: 1.3;
+  margin-bottom: 3px;
+  font-size: 12px;
+}
+.welcome-section li strong {
+  color: #111827;
+  font-weight: 700;
+}
+.feature-highlight {
+  background: #f0fdf4;
+  border-left: 3px solid #10b981;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+.feature-highlight h3 {
+  color: #1f2937;
+  font-size: 14px;
+  margin: 0 0 6px 0;
+  font-weight: 700;
+}
+.feature-highlight ul {
+  margin: 5px 0 0 0;
+  padding-left: 16px;
+}
+.feature-highlight li {
+  color: #374151;
+  line-height: 1.3;
+  margin-bottom: 3px;
+  font-size: 12px;
+}
+.feature-highlight li strong {
+  color: #111827;
+  font-weight: 700;
+}
+.welcome-btn {
+  width: 100%;
+  margin: 0;
+  padding: 8px;
+  background: linear-gradient(135deg, #2d6a4f, #40916c);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.welcome-btn:hover, .welcome-btn:active {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(45, 106, 79, 0.3);
+}
+.welcome-btn.skip-btn {
+  background: linear-gradient(135deg, #6b7280, #9ca3af);
+}
+.welcome-buttons {
+  display: flex;
+  gap: 8px;
+  padding: 0 15px 15px;
+}
+.welcome-buttons .welcome-btn {
+  flex: 1;
+}
+
+/* Help Button */
+.help-button {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #2d6a4f, #40916c);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(45, 106, 79, 0.4);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+.help-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(45, 106, 79, 0.5);
+}
+.help-button.hidden {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .welcome-dialog {
+    width: 95%;
+    max-width: 95vw;
+  }
+}
+
+/* ================= GRAPH MODE SELECTION MODAL ================= */
+.graph-mode-modal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 3000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+.graph-mode-modal.visible {
+  display: flex;
+  opacity: 1;
+}
+.graph-mode-dialog {
+  background: white;
+  border-radius: 20px;
+  max-width: 500px;
+  width: 90%;
+  padding: 30px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  animation: slideUp 0.4s ease;
+  margin: 20px;
+}
+.graph-mode-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+.graph-mode-header h2 {
+  color: #1f2937;
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+.graph-mode-header p {
+  color: #6b7280;
+  font-size: 14px;
+}
+.graph-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.graph-mode-option {
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  border: 2px solid #d1d5db;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.graph-mode-option:hover, .graph-mode-option:active {
+  border-color: #8b5cf6;
+  background: linear-gradient(135deg, #f3e8ff, #e9d5ff);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+.graph-mode-option .icon {
+  font-size: 32px;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.graph-mode-option .content h3 {
+  color: #1f2937;
+  font-size: 18px;
+  margin-bottom: 5px;
+}
+.graph-mode-option .content p {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* ================= SELECTION RECTANGLE ================= */
+.selection-rectangle {
+  position: absolute;
+  border: 3px dashed #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+  pointer-events: none;
+  z-index: 15;
+  display: none;
+}
+.selection-rectangle.active {
+  display: block;
+}
+
+/* Responsive */
+/* ================= MOBILE RESPONSIVE STYLES ================= */
+/* Optimized for iPhone 13 mini (375px), iPhone 16 (390px), Galaxy S23/S24 (360-412px) */
+
+/* Base mobile breakpoint - covers all phones */
+@media (max-width: 768px) {
+@media (max-width: 768px) {
+  /* Use dynamic viewport for mobile browsers */
+  body {
+    height: 100dvh;
+  }
+  
+  #viewport {
+    padding-top: 70px !important;
+    touch-action: none !important;
+  }
+  
+  #mapContainer {
+    touch-action: none !important;
+  }
+  
+  #floorImage {
+    display: block !important;
+    max-width: none !important;
+    width: auto !important;
+    height: auto !important;
+    pointer-events: none !important;
+    user-select: none !important;
+  }
+  
+  /* ===== HEADER - Compact but usable ===== */
+  .header { 
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding: 8px 12px !important;
+    min-height: auto !important;
+    height: auto !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    z-index: 1000 !important;
+    flex-wrap: wrap !important;
+    box-sizing: border-box !important;
+    padding-top: max(8px, env(safe-area-inset-top)) !important;
+  }
+  
+  .header-left { 
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+    gap: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  
+  .header-right { 
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+    margin-left: auto !important;
+    gap: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  
+  .app-icon {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 16px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .app-title {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+  }
+  
+  .app-title h1 {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+  }
+  
+  .app-subtitle {
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+    margin-top: 2px !important;
+  }
+  
+  /* Mode Container */
+  .mode-container { 
+    order: 10 !important;
+    width: 100% !important;
+    margin-top: 8px !important;
+    padding-top: 8px !important;
+    border-top: 1px solid #e5e7eb !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  
+  .mode-toggle {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4px !important;
+    padding: 4px !important;
+  }
+  
+  .mode-btn {
+    padding: 8px 4px !important;
+    font-size: 10px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  
+  .graph-controls { 
+    width: 100% !important;
+    justify-content: center !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  
+  .sub-mode-btn {
+    padding: 8px 12px !important;
+    font-size: 11px !important;
+    width: 100% !important;
+  }
+  
+  .range-selector {
+    width: 100% !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  
+  .range-input {
+    width: 60px !important;
+    font-size: 14px !important;
+    padding: 6px !important;
+  }
+  
+  .range-label {
+    font-size: 11px !important;
+  }
+  
+  .apply-range-btn {
+    padding: 6px 16px !important;
+    font-size: 11px !important;
+  }
+  
+  /* Header Buttons - Larger touch targets */
+  .btn {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 16px !important;
+    flex-shrink: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .btn.reset-btn {
+    width: auto !important;
+    padding: 0 14px !important;
+    font-size: 12px !important;
+  }
+  
+  /* ===== POINTS - Bigger for touch ===== */
+  .point {
+    width: 42px !important;
+    height: 42px !important;
+    font-size: 16px !important;
+    border-width: 3px !important;
+    font-weight: 800 !important;
+  }
+  
+  .point::before {
+    content: '' !important;
+    position: absolute !important;
+    top: -12px !important;
+    left: -12px !important;
+    right: -12px !important;
+    bottom: -12px !important;
+    border-radius: 50% !important;
+  }
+  
+  .point:active {
+    transform: translate(-50%, -50%) scale(1.1) !important;
+  }
+  
+  /* ===== BOTTOM SHEET - Right side, wider and shorter ===== */
+  .bottom-sheet {
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    width: 46vw !important;
+    bottom: auto !important;
+    top: 50% !important;
+    transform: translate(4%, -50%) scale(0.95) !important;
+    max-height: 55vh !important;
+    border-radius: 16px !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 2000 !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
+    overflow: hidden !important;
+  }
+  
+  .bottom-sheet.open {
+    transform: translate(4%, -50%) scale(1) !important;
+  }
+  
+  .bottom-sheet.graph-viewer {
+    max-height: 85vh !important;
+    width: 46vw !important;
+    left: 50% !important;
+    transform: translate(4%, -50%) scale(0.95) !important;
+  }
+  
+  .bottom-sheet.graph-viewer.open {
+    transform: translate(4%, -50%) scale(1) !important;
+  }
+  
+  .bottom-sheet.media-viewer {
+    max-height: 85vh !important;
+    width: 46vw !important;
+    left: 50% !important;
+    transform: translate(4%, -50%) scale(0.95) !important;
+  }
+  
+  .bottom-sheet.media-viewer.open {
+    transform: translate(4%, -50%) scale(1) !important;
+  }
+  
+  .sheet-header {
+    padding: 4px 8px !important;
+    min-height: 22px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .sheet-id {
+    font-size: 10px !important;
+  }
+  
+  .sheet-name {
+    font-size: 7px !important;
+  }
+  
+  .close-btn {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 14px !important;
+  }
+  
+  .sheet-content {
+    padding: 2px !important;
+    gap: 1px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex: 1 !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+  }
+  
+  /* Graph viewers should be scrollable with better padding */
+  .bottom-sheet.graph-viewer .sheet-content {
+    overflow-y: auto !important;
+    padding: 4px !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Media viewers should be scrollable with better padding */
+  .bottom-sheet.media-viewer .sheet-content {
+    overflow-y: auto !important;
+    padding: 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Make signal boxes 50% smaller - extreme compact */
+  .signal-box {
+    padding: 2px 1px !important;
+    border-width: 0.5px !important;
+    min-height: 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  .signal-box.main-signal {
+    padding: 2px 2px !important;
+    min-height: 17px !important;
+    grid-column: 1 / -1 !important;
+  }
+  
+  .signal-name {
+    font-size: 5px !important;
+    line-height: 1 !important;
+    margin-bottom: 0px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+  }
+  
+  .signal-value {
+    font-size: 7px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+  }
+  
+  /* ===== COMMENT BOX - Left side, wider and shorter, optimized image ===== */
+  .comment-side-box {
+    display: flex !important;
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    top: 50% !important;
+    width: 46vw !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 80px !important;
+    max-height: 55vh !important;
+    transform: translate(-104%, -50%) scale(0.95) !important;
+    z-index: 2000 !important;
+    padding: 10px !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
+    border: 2px solid #9333ea !important;
+    backdrop-filter: blur(10px) !important;
+    overflow: hidden !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: all 0.3s ease !important;
+  }
+  
+  .comment-side-box.visible {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translate(-104%, -50%) scale(1) !important;
+  }
+  
+  .comment-side-box.with-sheet {
+    /* Stays on left */
+  }
+  
+  .comment-text-content {
+    position: relative !important;
+    z-index: 10 !important;
+    font-size: 10px !important;
+    padding: 8px !important;
+    line-height: 1.6 !important;
+    text-align: justify !important;
+    overflow-y: visible !important;
+    max-height: calc(55vh - 30px) !important;
+    width: 100% !important;
+    color: #1f2937 !important;
+    font-weight: 500 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  .comment-text-content strong {
+    font-weight: 800 !important;
+    color: #9333ea !important;
+    display: block !important;
+    margin-bottom: 8px !important;
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+    text-align: center !important;
+  }
+  
+  .comment-text-content img {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 22vh !important;
+    display: block !important;
+    margin: 0 auto 10px auto !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    object-fit: contain !important;
+    order: -1 !important;
+  }
+  
+  .comment-text-content div {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+  }
+  
+  .comment-text-content p {
+    margin: 6px 0 !important;
+    line-height: 1.6 !important;
+    font-size: 10px !important;
+    text-align: justify !important;
+    text-justify: inter-word !important;
+    width: 100% !important;
+  }
+  
+  .comment-svg-bg {
+    display: none !important;
+  }
+  
+  .comment-arrow {
+    display: none !important;
+  }
+  
+  .comment-svg-bg {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 16px !important;
+    opacity: 0.1 !important;
+  }
+  
+  .comment-arrow {
+    display: none !important;
+  }
+  
+  .graph-container { 
+    height: 500px !important;
+    padding: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  .graph-mode-modal {
+    padding: 12px !important;
+  }
+  
+  .graph-mode-dialog {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    padding: 20px !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+  }
+  
+  .graph-mode-header h2 {
+    font-size: 20px !important;
+  }
+  
+  .graph-mode-header p {
+    font-size: 13px !important;
+  }
+  
+  .graph-mode-option {
+    padding: 16px !important;
+  }
+  
+  .graph-mode-option .icon {
+    font-size: 32px !important;
+    width: 50px !important;
+    height: 50px !important;
+  }
+  
+  .graph-mode-option .content h3 {
+    font-size: 16px !important;
+  }
+  
+  .graph-mode-option .content p {
+    font-size: 13px !important;
+  }
+  
+  .welcome-overlay {
+    padding: 12px !important;
+  }
+  
+  .welcome-dialog {
+    width: 90vw !important;
+    max-width: 90vw !important;
+    max-height: 70vh !important;
+    overflow-y: visible !important;
+  }
+  
+  .welcome-logo {
+    max-width: 60px !important;
+    height: auto !important;
+  }
+  
+  .welcome-header h1 {
+    font-size: 16px !important;
+  }
+  
+  .welcome-header h2 {
+    font-size: 11px !important;
+  }
+  
+  .welcome-content {
+    padding: 12px !important;
+    font-size: 11px !important;
+  }
+  
+  .welcome-section h3 {
+    font-size: 13px !important;
+    margin-bottom: 6px !important;
+  }
+  
+  .welcome-section p,
+  .welcome-section li {
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+  }
+  
+  .welcome-btn {
+    padding: 10px 24px !important;
+    font-size: 12px !important;
+  }
+  
+  .help-button {
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 24px !important;
+    bottom: 20px !important;
+    right: 20px !important;
+  }
+  
+  .components-fullpage {
+    padding: 100px 12px 20px 12px !important;
+  }
+  
+  .component-showcase {
+    gap: 24px !important;
+  }
+  
+  .component-showcase-item {
+    flex-direction: column !important;
+    gap: 16px !important;
+    padding: 16px !important;
+  }
+  
+  .component-image-section {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  .component-showcase-image {
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 300px !important;
+  }
+  
+  .component-text-section {
+    width: 100% !important;
+  }
+  
+  .component-showcase-title {
+    font-size: 16px !important;
+  }
+  
+  .component-showcase-type {
+    font-size: 11px !important;
+  }
+  
+  .component-showcase-description {
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+  }
+  
+  #loadingStatus {
+    padding: 24px !important;
+    font-size: 16px !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* ===== EXTRA SMALL PHONES ===== */
+@media (max-width: 400px) {
+  .app-title h1 {
+    font-size: 12px !important;
+  }
+  
+  .app-subtitle {
+    font-size: 8px !important;
+  }
+  
+  .mode-btn {
+    font-size: 9px !important;
+    padding: 6px 2px !important;
+  }
+  
+  .btn {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 14px !important;
+  }
+  
+  .btn.reset-btn {
+    padding: 0 10px !important;
+    font-size: 11px !important;
+  }
+  
+  .point {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 14px !important;
+  }
+  
+  .comment-text-content {
+    font-size: 11px !important;
+  }
+  
+  .signal-value {
+    font-size: 16px !important;
+  }
+}
+
+/* ===== LANDSCAPE MODE ===== */
+@media (max-width: 768px) and (orientation: landscape) {
+  #viewport {
+    padding-top: 90px !important;
+  }
+  
+  .header {
+    padding: 6px 12px !important;
+  }
+  
+  .mode-container {
+    margin-top: 6px !important;
+    padding-top: 6px !important;
+  }
+  
+  .bottom-sheet {
+    max-height: 65vh !important;
+  }
+  
+  .comment-side-box {
+    max-height: 30vh !important;
+  }
+  
+  .comment-side-box.with-sheet {
+    bottom: calc(65vh + 12px) !important;
+  }
+}
+  </style>
+</head>
+<body>
+
+  <div class="header data-mode" id="header">
+    <div class="header-left">
+      <div class="app-icon">📡</div>
+      <div class="app-title">
+        <h1>Blind System Support</h1>
+        <div class="app-subtitle">WiFi Monitor</div>
+      </div>
+    </div>
+
+    <div class="mode-container">
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btnDataMode">📊 Data</button>
+        <button class="mode-btn" id="btnGraphMode">📈 Graphs</button>
+        <button class="mode-btn" id="btnMediaMode">📷 Media</button>
+        <button class="mode-btn" id="btnComponentsMode">🔧 Components</button>
+      </div>
+
+      <div class="graph-controls" id="graphControls">
+        <button class="sub-mode-btn active" id="btnFullData">📊 Full Data</button>
+        <button class="sub-mode-btn" id="btnSelectPoints">👆 Select Points</button>
+        <button class="sub-mode-btn clear-graph-btn" id="btnClearSelection" style="display:none;">Clear</button>
+        
+        <div class="range-selector" id="rangeSelector">
+          <span class="range-label">From:</span>
+          <input type="number" class="range-input" id="rangeFrom" min="1" value="1" placeholder="1">
+          <span class="range-label">To:</span>
+          <input type="number" class="range-input" id="rangeTo" min="1" value="24" placeholder="24">
+          <button class="apply-range-btn" id="applyRange">Apply Range</button>
+        </div>
+        
+        <div class="range-selector" id="boxSelectHint" style="display:none; background:#fef3c7; border-color:#fbbf24;">
+          <span class="range-label" style="color:#92400e;">💡 Hold Shift + Drag to select points</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="btn" id="btnPlus">+</button>
+      <button class="btn" id="btnMinus">−</button>
+      <button class="btn" id="btnFit">⊡</button>
+      <button class="btn reset-btn" id="btnReset">↻ Reset</button>
+    </div>
+  </div>
+
+  <div id="viewport">
+    <div id="map-container">
+      <img id="floorImage" src="floor1.jpg" alt="Floor Plan">
+    </div>
+  </div>
+
+  <div id="sideCommentBox" class="comment-side-box">
+    <svg class="comment-svg-bg" viewBox="0 0 300 200" preserveAspectRatio="none">
+      <path id="commentShapePath" d="M10,10 L290,10 L290,190 L10,190 Z" />
+    </svg>
+    <div class="comment-text-content" id="commentTextContent"></div>
+    <div class="comment-arrow"></div>
+  </div>
+
+  <div class="bottom-sheet" id="bottomSheet">
+    <div class="sheet-header">
+      <div class="sheet-title">
+        <div class="sheet-id" id="sheetId">#</div>
+        <div class="sheet-name" id="sheetName">Details</div>
+      </div>
+      <button class="close-btn" id="closeSheet">×</button>
+    </div>
+    <div class="sheet-content" id="sheetContent"></div>
+  </div>
+
+  <div id="loadingStatus" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:30px; border-radius:15px; box-shadow:0 10px 40px rgba(0,0,0,0.15); text-align:center; z-index:4000;">
+    Loading Data...
+  </div>
+
+  <!-- Welcome Dialog -->
+  <div id="welcomeOverlay" class="welcome-overlay hidden">
+    <div class="welcome-dialog">
+      <div class="welcome-pages" id="welcomePages">
+        <!-- Page 1: Project Introduction -->
+        <div class="welcome-page">
+          <div class="welcome-header">
+            <img src="university_logo.jpeg" alt="Birzeit University" class="welcome-logo">
+            <h1>Blind System Support</h1>
+            <h2>Indoor Navigation System</h2>
+          </div>
+          <div class="welcome-content">
+            <div class="welcome-section">
+              <h3>🎓 About This Project</h3>
+              <p>
+                This system is a graduation project from <strong>Birzeit University</strong>, Department of Computer and Electrical Engineering (Academic Year 2025-2026).
+              </p>
+              <p>
+                The project aims to assist blind and visually impaired individuals with indoor navigation using WiFi RSSI fingerprinting technology, enabling safe and independent wayfinding.
+              </p>
+            </div>
+
+            <div class="welcome-section">
+              <h3>🔬 How It Works</h3>
+              <p>
+                The system uses <strong>RSSI (Received Signal Strength Indicator)</strong> values to determine indoor location:
+              </p>
+              <ul>
+                <li>Each reference plate has a unique RSSI fingerprint with (x, y) coordinates</li>
+                <li>When a user approaches a plate, the system compares real-time RSSI values</li>
+                <li>Based on comparison, it identifies the closest plate and determines location</li>
+                <li>This enables accurate positioning for safe, independent navigation</li>
+              </ul>
+            </div>
+
+            <div class="welcome-section">
+              <p style="text-align: center; color: #6b7280; font-size: 11px; margin-top: 8px;">
+                <strong>Birzeit University</strong> • Computer and Electrical Engineering<br>
+                Graduation Project 2025-2026<br>
+                <span style="color: #2d6a4f; font-weight: 600;">Supervised by: Dr. Wasel Ghanem</span><br>
+                <span style="color: #2d6a4f;">with assistance from Dr. Alhareth Zyoud</span>
+              </p>
+            </div>
+          </div>
+          <div class="welcome-buttons">
+            <button class="welcome-btn" id="nextBtn">Next →</button>
+          </div>
+        </div>
+
+        <!-- Page 2: How to Use -->
+        <div class="welcome-page">
+          <div class="welcome-header">
+            <img src="university_logo.jpeg" alt="Birzeit University" class="welcome-logo">
+            <h1>How to Use</h1>
+            <h2>Web Application Guide</h2>
+          </div>
+          <div class="welcome-content">
+            <div class="feature-highlight">
+              <h3>📱 Application Modes</h3>
+              <ul>
+                <li><strong>📊 Data Mode:</strong> Click on any point to view RSSI signal strength data for that measurement plate</li>
+                <li><strong>📈 Graphs Mode:</strong> Visualize signal patterns across measurement plates - use single mode, range selection, or box selection</li>
+                <li><strong>📷 Media Mode:</strong> View photos and videos captured at measurement locations</li>
+                <li><strong>🔧 Components Mode:</strong> Explore detailed information about the hardware components used in the system</li>
+              </ul>
+            </div>
+
+            <div class="welcome-section">
+              <h3>🎮 Navigation Controls</h3>
+              <ul>
+                <li><strong>Pan:</strong> Click and drag to move around the floor plan</li>
+                <li><strong>Zoom:</strong> Scroll or pinch to zoom in/out, or use the +/- buttons</li>
+                <li><strong>Reset View:</strong> Click the "Reset" button to fit the map to screen</li>
+                <li><strong>Points:</strong> Click any numbered point to see detailed information</li>
+              </ul>
+            </div>
+
+            <div class="welcome-section">
+              <p style="text-align: center; color: #2d6a4f; font-size: 12px; margin-top: 8px; font-weight: 600;">
+                💡 Click the help button (?) anytime to see this guide again
+              </p>
+            </div>
+          </div>
+          <div class="welcome-buttons">
+            <button class="welcome-btn" id="doneBtn">Done ✓</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Button -->
+  <button class="help-button hidden" id="helpBtn" title="Help">?</button>
+
+  <div id="graphModeModal" class="graph-mode-modal">
+    <div class="graph-mode-dialog">
+      <div class="graph-mode-header">
+        <h2>📈 Choose Graph Mode</h2>
+        <p>Select how you want to view your data</p>
+      </div>
+      <div class="graph-mode-options">
+        <div class="graph-mode-option" id="optionFullData">
+          <div class="icon">📊</div>
+          <div class="content">
+            <h3>Full Data View</h3>
+            <p>See all plates with all routers in one comprehensive graph</p>
+          </div>
+        </div>
+        <div class="graph-mode-option" id="optionSelectPoints">
+          <div class="icon">🎯</div>
+          <div class="content">
+            <h3>Select Specific Points</h3>
+            <p>Choose specific plates using range, clicking, or box selection</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="selectionRect" class="selection-rectangle"></div>
+
+  <!-- Full-Page Components View -->
+  <div id="componentsFullpage" class="components-fullpage">
+    <div class="component-showcase">
+      <!-- ESP32 Component -->
+      <div class="component-showcase-item">
+        <div class="component-image-section">
+          <img src="ESP32-S3-N16-R8-EXT-004.jpg" alt="ESP32-S3 Board" class="component-showcase-image">
+        </div>
+        <div class="component-text-section">
+          <div class="component-showcase-header">
+            <div class="component-showcase-title">
+              <span class="icon">🔌</span>
+              <span>ESP32-S3-N16R8 Development Board</span>
+            </div>
+            <div class="component-showcase-type">Microcontroller</div>
+          </div>
+          
+          <div class="component-showcase-description">
+            High-performance microcontroller with built-in WiFi and Bluetooth connectivity. Features extensive memory (16MB Flash + 8MB PSRAM) for complex applications. Ideal for IoT projects requiring wireless connectivity and sensor fusion. The ESP32-S3 includes hardware acceleration for machine learning operations and supports real-time WiFi RSSI measurement for indoor positioning.
+            <br><br>
+            Model: ESP32-S3-WROOM-1-N16R8 • CPU: Xtensa dual-core 32-bit LX7 @ 240MHz • Flash Memory: 16 MB • PSRAM: 8 MB • WiFi: 802.11 b/g/n (2.4 GHz) • Bluetooth: Bluetooth 5 (LE) • GPIO Pins: 45 programmable pins • ADC: 2× 12-bit SAR ADCs (20 channels) • USB: USB OTG (Type-C) • Operating Voltage: 3.3V • Input Voltage: 5V (via USB or VIN)
+          </div>
+        </div>
+      </div>
+
+      <!-- WiFi Antenna Component -->
+      <div class="component-showcase-item">
+        <div class="component-image-section">
+          <img src="Antena_WiFi_Cable_Adaptador.webp" alt="WiFi Antenna" class="component-showcase-image">
+        </div>
+        <div class="component-text-section">
+          <div class="component-showcase-header">
+            <div class="component-showcase-title">
+              <span class="icon">📡</span>
+              <span>External WiFi Antenna with Cable</span>
+            </div>
+            <div class="component-showcase-type">Antenna</div>
+          </div>
+          
+          <div class="component-showcase-description">
+            External antenna designed to enhance WiFi and Bluetooth signal reception for the ESP32. The omnidirectional radiation pattern provides 360-degree coverage, making it ideal for RSSI measurement accuracy. The extension cable allows flexible antenna positioning for optimal signal strength detection. Critical for reliable indoor positioning as it significantly improves signal consistency and range compared to the built-in PCB antenna.
+            <br><br>
+            Type: 2.4GHz Omnidirectional Antenna • Frequency Range: 2.4-2.5 GHz (WiFi & Bluetooth) • Gain: 3-5 dBi • Connector: U.FL/IPEX to RP-SMA Female • Cable Length: ~15-20 cm • Impedance: 50 Ohm • Polarization: Vertical Linear
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ================= CONFIGURATION & STATE =================
+  const state = { 
+    points: [], 
+    scale: 1, 
+    x: 0, 
+    y: 0, 
+    isDragging: false,
+    dragStartX: 0,
+    dragStartY: 0,
+    startX: 0,
+    startY: 0,
+    isBoxSelecting: false,
+    boxStartX: 0,
+    boxStartY: 0,
+    // Touch support
+    lastTouchDistance: 0,
+    lastTouchCenter: { x: 0, y: 0 },
+    isTouching: false
+  };
+  let currentMode = 'data'; // data, graph, media
+  let graphSubMode = 'full'; // full, select
+  let selectedPoints = []; // Stores point objects for comparison
+  let chartInstance = null; // Stores the Chart.js instance
+
+  // Professional color palette (similar to your reference image)
+  const PALETTE = [
+    '#0072B2',  // Blue (MAIN)
+    '#D55E00',  // Orange-Red (R102)
+    '#009E73',  // Green (R116)
+    '#F0E442',  // Yellow (R103)
+    '#56B4E9',  // Sky Blue (R202)
+    '#CC79A7',  // Pink (R228)
+    '#E69F00',  // Orange (R103 alt)
+    '#882255',  // Purple (R201)
+    '#44AA99',  // Teal (R203)
+    '#117733',  // Dark Green (R214)
+    '#999933'   // Olive (R128)
+  ];
+
+  const els = {
+    viewport: document.getElementById('viewport'),
+    container: document.getElementById('map-container'),
+    img: document.getElementById('floorImage'),
+    sheet: document.getElementById('bottomSheet'),
+    header: document.getElementById('header'),
+    loading: document.getElementById('loadingStatus'),
+    // Buttons
+    btnData: document.getElementById('btnDataMode'),
+    btnGraph: document.getElementById('btnGraphMode'),
+    btnMedia: document.getElementById('btnMediaMode'),
+    btnComponents: document.getElementById('btnComponentsMode'),
+    // Graph Controls
+    graphControls: document.getElementById('graphControls'),
+    btnFull: document.getElementById('btnFullData'),
+    btnSelect: document.getElementById('btnSelectPoints'),
+    btnClear: document.getElementById('btnClearSelection'),
+    // Range Selector
+    rangeSelector: document.getElementById('rangeSelector'),
+    rangeFrom: document.getElementById('rangeFrom'),
+    rangeTo: document.getElementById('rangeTo'),
+    applyRange: document.getElementById('applyRange')
+  };
+
+  // ================= INITIALIZATION =================
+  async function init() {
+    // FIRST THING: Check if user has seen welcome and make decision
+    const hasSeenWelcome = localStorage.getItem('paldiblind_welcome_seen');
+    
+    // Show welcome immediately if not seen before
+    const welcomeOverlay = document.getElementById('welcomeOverlay');
+    const helpBtn = document.getElementById('helpBtn');
+    
+    if(hasSeenWelcome !== 'true') {
+      // First time users: Show welcome immediately
+      welcomeOverlay.classList.remove('hidden');
+      welcomeOverlay.style.display = 'flex';
+      helpBtn.classList.add('hidden');
+    } else {
+      // Returning users: Just ensure help button is visible
+      helpBtn.classList.remove('hidden');
+    }
+    
+    setupEventListeners();
+    
+    // Setup welcome dialog navigation - show/hide pages instead of slide
+    let welcomePage = 1;
+    
+    // Show page 1 by default
+    document.querySelectorAll('.welcome-page').forEach((page, index) => {
+      if(index === 0) page.classList.add('active');
+      else page.classList.remove('active');
+    });
+    
+    document.getElementById('nextBtn').onclick = () => {
+      welcomePage = 2;
+      document.querySelectorAll('.welcome-page').forEach((page, index) => {
+        if(index === 1) page.classList.add('active');
+        else page.classList.remove('active');
+      });
+    };
+    
+    document.getElementById('doneBtn').onclick = () => {
+      closeWelcome();
+    };
+    
+    function closeWelcome() {
+      welcomeOverlay.classList.add('hidden');
+      helpBtn.classList.remove('hidden');
+      localStorage.setItem('paldiblind_welcome_seen', 'true');
+    }
+    
+    // Help button reopens welcome
+    helpBtn.onclick = () => {
+      welcomeOverlay.classList.remove('hidden');
+      welcomeOverlay.style.display = 'flex';
+      // Reset to page 1
+      document.querySelectorAll('.welcome-page').forEach((page, index) => {
+        if(index === 0) page.classList.add('active');
+        else page.classList.remove('active');
+      });
+      welcomePage = 1;
+    };
+    
+    try {
+      const res = await fetch('floor_full_data.json');
+      const data = await res.json();
+      state.points = data.points || [];
+      
+      // Init Viewport - always fit on mobile, use saved state on desktop
+      const isMobile = window.innerWidth <= 768;
+      
+      if (isMobile) {
+        // On mobile, always fit the map to screen
+        fitMap();
+      } else {
+        // On desktop, use saved viewport state if available
+        if (data.viewportState) {
+          state.scale = data.viewportState.scale || 1;
+          state.x = data.viewportState.x || 0;
+          state.y = data.viewportState.y || 0;
+          updateTransform();
+        } else {
+          fitMap();
+        }
+      }
+      
+      // Render points first
+      renderPoints();
+      
+      // Hide loading indicator
+      els.loading.style.display = 'none';
+      
+    } catch(e) { 
+      els.loading.innerHTML = "Error loading floor_full_data.json"; 
+    }
+  }
+
+  // ================= RENDER LOGIC =================
+  function renderPoints() {
+    document.querySelectorAll('.point').forEach(p => p.remove());
+    
+    // Filter points based on mode
+    const toShow = state.points.filter(p => {
+        if(currentMode === 'media') return p.type === 'media';
+        return (p.type === 'data' || p.type === 'command');
+    });
+    
+    toShow.forEach(p => {
+      const el = document.createElement('div');
+      el.className = 'point';
+      el.dataset.id = p.id || p.row;
+      el.style.left = p.x + 'px';
+      el.style.top = p.y + 'px';
+      
+      if(p.type === 'command') { 
+        el.classList.add('command-point'); 
+        el.textContent = '💬'; 
+      }
+      else if(p.type === 'media') { 
+        el.classList.add('media-point'); 
+        el.textContent = p.mediaType?.includes('video') ? '🎥' : '📷'; 
+      }
+      else { 
+          if(currentMode === 'graph') {
+             el.classList.add('graph-point');
+             el.textContent = '📈'; 
+          } else {
+             el.textContent = p.row; 
+          }
+      }
+      
+      el.onclick = (e) => { e.stopPropagation(); handlePointClick(p, el); };
+      els.container.appendChild(el);
+    });
+  }
+
+  // ================= INTERACTION HANDLERS =================
+  function setMode(mode) {
+    // If switching to graph mode, show the modal first
+    if(mode === 'graph' && currentMode !== 'graph') {
+      showGraphModeModal();
+      return;
+    }
+    
+    // Handle components mode - overlay without hiding viewport
+    if(mode === 'components') {
+      currentMode = mode;
+      els.btnData.classList.toggle('active', false);
+      els.btnGraph.classList.toggle('active', false);
+      els.btnMedia.classList.toggle('active', false);
+      els.btnComponents.classList.toggle('active', true);
+      els.header.className = `header ${mode}-mode`;
+      
+      // Show components overlay WITHOUT hiding viewport
+      document.getElementById('componentsFullpage').classList.add('visible');
+      document.getElementById('sideCommentBox').classList.remove('visible');
+      closeSheet();
+      return;
+    }
+    
+    // Hide components fullpage for other modes
+    document.getElementById('componentsFullpage').classList.remove('visible');
+    
+    currentMode = mode;
+    
+    // Update UI Classes
+    els.btnData.classList.toggle('active', mode === 'data');
+    els.btnGraph.classList.toggle('active', mode === 'graph');
+    els.btnMedia.classList.toggle('active', mode === 'media');
+    els.btnComponents.classList.toggle('active', mode === 'components');
+    
+    els.header.className = `header ${mode}-mode`;
+    
+    // Reset selections when changing modes
+    selectedPoints = [];
+    document.querySelectorAll('.point').forEach(p => p.classList.remove('active', 'multi-active'));
+    closeSheet();
+    
+    renderPoints();
+  }
+
+  function showGraphModeModal() {
+    const modal = document.getElementById('graphModeModal');
+    modal.classList.add('visible');
+  }
+
+  function hideGraphModeModal() {
+    const modal = document.getElementById('graphModeModal');
+    modal.classList.remove('visible');
+  }
+
+  function selectGraphMode(subMode) {
+    hideGraphModeModal();
+    currentMode = 'graph';
+    
+    // Update mode buttons
+    els.btnData.classList.remove('active');
+    els.btnGraph.classList.add('active');
+    els.btnMedia.classList.remove('active');
+    els.header.className = 'header graph-mode';
+    
+    // Set the graph sub-mode
+    graphSubMode = subMode;
+    els.btnFull.classList.toggle('active', subMode === 'full');
+    els.btnSelect.classList.toggle('active', subMode === 'select');
+    
+    if(subMode === 'full') {
+      els.rangeSelector.classList.remove('visible');
+      els.btnClear.style.display = 'none';
+      renderPoints();
+      renderFullDataGraph();
+    } else {
+      els.rangeSelector.classList.add('visible');
+      els.btnClear.style.display = 'inline-block';
+      renderPoints();
+    }
+  }
+
+  function setGraphSubMode(subMode) {
+    graphSubMode = subMode;
+    els.btnFull.classList.toggle('active', subMode === 'full');
+    els.btnSelect.classList.toggle('active', subMode === 'select');
+    
+    if(subMode === 'full') {
+        // Full data mode - show all data
+        selectedPoints = [];
+        document.querySelectorAll('.point').forEach(p => p.classList.remove('multi-active'));
+        els.btnClear.style.display = 'none';
+        els.rangeSelector.classList.remove('visible');
+        document.getElementById('boxSelectHint').style.display = 'none';
+        renderFullDataGraph();
+    } else {
+        // Select mode - user picks points
+        closeSheet();
+        els.btnClear.style.display = 'inline-block';
+        els.rangeSelector.classList.add('visible');
+        document.getElementById('boxSelectHint').style.display = 'flex';
+    }
+  }
+
+  function handlePointClick(data, element) {
+    if (currentMode === 'graph') {
+        handleGraphClick(data, element);
+    } else {
+        // Standard Behavior for Data/Media
+        document.querySelectorAll('.point.active').forEach(p => p.classList.remove('active'));
+        element.classList.add('active');
+        openSheet(data);
+    }
+  }
+
+  function handleGraphClick(data, element) {
+    if (graphSubMode === 'full') {
+        // In full data mode, clicking can also select for detailed view
+        // But we keep the full graph open - just highlight the clicked point
+        document.querySelectorAll('.point').forEach(p => p.classList.remove('active'));
+        element.classList.add('active');
+        
+        // Show comment if exists
+        handleCommentBox(data);
+        
+    } else {
+        // Select mode - multi-select for comparison
+        const index = selectedPoints.findIndex(p => p.row === data.row);
+        
+        if (index > -1) {
+            // Deselect
+            selectedPoints.splice(index, 1);
+            element.classList.remove('multi-active');
+        } else {
+            // Select (No limit now - user can select as many as they want)
+            selectedPoints.push(data);
+            element.classList.add('multi-active');
+        }
+        
+        // Update comment box
+        if (selectedPoints.length > 0) {
+            handleCommentBox(selectedPoints[selectedPoints.length - 1]);
+        } else {
+            document.getElementById('sideCommentBox').classList.remove('visible');
+        }
+        
+        // If we have points, show chart. If empty, close.
+        if (selectedPoints.length > 0) {
+            renderGraphSheet();
+        } else {
+            closeSheet();
+        }
+    }
+  }
+
+  // ================= SHEET & GRAPH RENDERING =================
+  function openSheet(data) {
+    // Reset Classes
+    els.sheet.classList.remove('media-viewer', 'graph-viewer');
+    const container = document.getElementById('sheetContent');
+    container.innerHTML = '';
+    
+    // Handle Comment Box (Side)
+    handleCommentBox(data);
+    
+    // Add class to comment box when sheet is open (for mobile)
+    const commentBox = document.getElementById('sideCommentBox');
+    if(commentBox.classList.contains('visible')) {
+      commentBox.classList.add('with-sheet');
+    }
+
+    if (currentMode === 'media' && data.type === 'media') {
+      els.sheet.classList.add('media-viewer');
+      document.getElementById('sheetId').textContent = '📷';
+      document.getElementById('sheetName').textContent = data.label || 'Media';
+      const wrap = document.createElement('div');
+      wrap.style.cssText = "width:100%; display:flex; justify-content:center; flex-direction:column; align-items:center;";
+      if(data.mediaType?.includes('video')) {
+        wrap.innerHTML = `<video src="${data.mediaData}" controls style="max-width:100%; max-height:70vh;"></video>`;
+      } else {
+        wrap.innerHTML = `<img src="${data.mediaData}" style="max-width:100%; max-height:70vh; object-fit:contain;">`;
+      }
+      container.appendChild(wrap);
+    } 
+    else {
+      // Standard Data View
+      document.getElementById('sheetId').textContent = '#' + data.row;
+      document.getElementById('sheetName').textContent = data.plate || 'Info';
+      
+      if(data.signals) {
+        Object.entries(data.signals).forEach(([k, v], i) => {
+          const color = v > -50 ? 'val-green' : (v > -80 ? 'val-yellow' : 'val-red');
+          container.innerHTML += `
+            <div class="signal-box ${i===0?'main-signal':''}">
+              <div class="signal-name">${k}</div>
+              <div class="signal-value ${color}">${v}</div>
+            </div>`;
+        });
+      }
+    }
+    els.sheet.classList.add('open');
+  }
+
+  function renderFullDataGraph() {
+    // Show graph with all data points
+    els.sheet.classList.add('graph-viewer', 'open');
+    const container = document.getElementById('sheetContent');
+    container.innerHTML = '';
+
+    // Header Info
+    document.getElementById('sheetId').textContent = '📊';
+    document.getElementById('sheetName').textContent = 'Full Network Data - All Plates';
+
+    // Create Canvas
+    const graphWrap = document.createElement('div');
+    graphWrap.className = 'graph-container';
+    const canvas = document.createElement('canvas');
+    graphWrap.appendChild(canvas);
+    container.appendChild(graphWrap);
+
+    // Get all data points (filter only data type)
+    const dataPoints = state.points.filter(p => p.type === 'data' && p.signals);
+    
+    // Sort by plate/row number
+    dataPoints.sort((a, b) => {
+      const numA = parseInt(a.row) || 0;
+      const numB = parseInt(b.row) || 0;
+      return numA - numB;
+    });
+
+    // Get all unique router names
+    let allRouters = new Set();
+    dataPoints.forEach(p => {
+        if(p.signals) Object.keys(p.signals).forEach(k => allRouters.add(k));
+    });
+    
+    // Sort routers: MAIN first, then alphabetically
+    const routerNames = Array.from(allRouters).sort((a, b) => {
+        if(a === 'MAIN') return -1;
+        if(b === 'MAIN') return 1;
+        return a.localeCompare(b);
+    });
+
+    // X-axis: Plate numbers
+    const labels = dataPoints.map(p => p.row);
+
+    // Build datasets for each router
+    const datasets = routerNames.map((routerName, index) => {
+        const dataValues = dataPoints.map(p => {
+            return p.signals && p.signals[routerName] !== undefined ? p.signals[routerName] : null;
+        });
+
+        return {
+            label: routerName,
+            data: dataValues,
+            borderColor: PALETTE[index % PALETTE.length],
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            tension: 0.4, // Smooth curves
+            pointRadius: 0, // No points visible by default
+            pointHoverRadius: 5,
+            pointBackgroundColor: PALETTE[index % PALETTE.length],
+            fill: false
+        };
+    });
+
+    // Render Chart
+    if(chartInstance) chartInstance.destroy();
+    
+    chartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: { 
+                    display: true, 
+                    position: 'right',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 11,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                title: {
+                    display: true,
+                    text: 'Signal Strength Across All Plates (Smoothed)',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    },
+                    padding: 20
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#1f2937',
+                    bodyColor: '#1f2937',
+                    borderColor: '#e5e7eb',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: true,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' dBm';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    title: { 
+                        display: true, 
+                        text: 'Value',
+                        font: {
+                            size: 13,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: { 
+                        color: '#e5e7eb',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    },
+                    min: -102,
+                    max: -20
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Plate Number',
+                        font: {
+                            size: 13,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: { 
+                        display: false 
+                    },
+                    ticks: {
+                        font: {
+                            size: 10
+                        }
+                    }
+                }
+            }
+        }
+    });
+  }
+
+  function renderGraphSheet() {
+    els.sheet.classList.add('graph-viewer', 'open');
+    const container = document.getElementById('sheetContent');
+    container.innerHTML = '';
+
+    // Header Info
+    document.getElementById('sheetId').textContent = selectedPoints.length > 1 ? '📊' : '📈';
+    document.getElementById('sheetName').textContent = selectedPoints.length > 1 
+      ? `Comparing ${selectedPoints.length} Points` 
+      : (selectedPoints[0].plate || 'Signal Analysis');
+
+    // Create Canvas
+    const graphWrap = document.createElement('div');
+    graphWrap.className = 'graph-container';
+    const canvas = document.createElement('canvas');
+    graphWrap.appendChild(canvas);
+    container.appendChild(graphWrap);
+
+    // Sort selected points by row number
+    const sortedPoints = [...selectedPoints].sort((a, b) => {
+      const numA = parseInt(a.row) || 0;
+      const numB = parseInt(b.row) || 0;
+      return numA - numB;
+    });
+
+    // X-axis: Plate numbers (row numbers)
+    const labels = sortedPoints.map(p => p.row);
+
+    // Get all unique router names from selected points
+    let allRouters = new Set();
+    sortedPoints.forEach(p => {
+        if(p.signals) Object.keys(p.signals).forEach(k => allRouters.add(k));
+    });
+    
+    // Sort routers: MAIN first, then alphabetically
+    const routerNames = Array.from(allRouters).sort((a,b) => {
+        if(a === 'MAIN') return -1;
+        if(b === 'MAIN') return 1;
+        return a.localeCompare(b);
+    });
+
+    // Build Datasets - one line per router
+    const datasets = routerNames.map((routerName, index) => {
+        const dataValues = sortedPoints.map(p => {
+            return p.signals && p.signals[routerName] !== undefined ? p.signals[routerName] : null;
+        });
+
+        return {
+            label: routerName,
+            data: dataValues,
+            borderColor: PALETTE[index % PALETTE.length],
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            tension: 0.4,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: PALETTE[index % PALETTE.length],
+            fill: false
+        };
+    });
+
+    // 3. Render Chart
+    if(chartInstance) chartInstance.destroy();
+    
+    chartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            onClick: (event, elements) => {
+                // When clicking on graph, add that point to selection if in select mode
+                if(graphSubMode === 'select' && elements.length > 0) {
+                    const clickedIndex = elements[0].index;
+                    const clickedPlateNum = labels[clickedIndex];
+                    
+                    // Find the point in state.points
+                    const point = state.points.find(p => p.row == clickedPlateNum && p.type === 'data');
+                    if(point) {
+                        // Check if already selected
+                        const alreadySelected = selectedPoints.findIndex(p => p.row === point.row);
+                        
+                        if(alreadySelected === -1) {
+                            // Add to selection
+                            selectedPoints.push(point);
+                            const pointEl = document.querySelector(`.point[data-id="${point.id || point.row}"]`);
+                            if(pointEl) pointEl.classList.add('multi-active');
+                            renderGraphSheet(); // Refresh graph
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { 
+                    display: true, 
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                title: {
+                    display: true,
+                    text: `Selected Plates (${sortedPoints.length} points)`,
+                    font: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    padding: 15
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#1f2937',
+                    bodyColor: '#1f2937',
+                    borderColor: '#e5e7eb',
+                    borderWidth: 1,
+                    padding: 12,
+                    callbacks: {
+                        title: function(context) {
+                            return 'Plate #' + context[0].label;
+                        },
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' dBm';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    title: { 
+                        display: true, 
+                        text: 'Signal Strength (dBm)',
+                        font: {
+                            size: 13,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: { 
+                        color: '#e5e7eb' 
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    },
+                    min: -102,
+                    max: -20
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Plate Number',
+                        font: {
+                            size: 13,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: { 
+                        display: false 
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            }
+        }
+    });
+  }
+
+  function handleCommentBox(data) {
+    const box = document.getElementById('sideCommentBox');
+    const commentPath = document.getElementById('commentShapePath');
+    const commentText = document.getElementById('commentTextContent');
+    const commentSvg = document.querySelector('.comment-svg-bg');
+    
+    // Check if mobile device
+    const isMobile = window.innerWidth <= 768;
+    
+    if(data.comment) {
+      // Set comment text
+      let commentContent;
+      if (data.commentImage) {
+        commentContent = `
+          <div style="display:flex; flex-direction:row; gap:15px; align-items:flex-start;">
+            <img src="${data.commentImage}" style="width:200px; height:auto; border-radius:8px; object-fit:contain; flex-shrink:0;">
+            <div style="overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; hyphens: auto; flex:1;">
+              ${data.comment}
+            </div>
+          </div>`;
+      } else {
+        commentContent = `<div style="overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; hyphens: auto;">${data.comment}</div>`;
+      }
+      
+      commentText.innerHTML = commentContent;
+      
+      // Use commentStyle if available (new format)
+      if (data.commentStyle && data.commentStyle.customPath) {
+        commentPath.setAttribute('d', data.commentStyle.customPath.path);
+        commentSvg.setAttribute('viewBox', data.commentStyle.customPath.viewBox);
+        
+        // Apply custom colors
+        commentPath.style.fill = data.commentStyle.bgColor || '#fff';
+        commentPath.style.stroke = data.commentStyle.borderColor || '#7c3aed';
+        commentPath.style.strokeWidth = (data.commentStyle.borderWidth || 3) + 'px';
+        
+        // Apply text color and sizing
+        commentText.style.color = data.commentStyle.textColor || '#5b21b6';
+        commentText.style.fontSize = (data.commentStyle.fontSize || 14) + 'px';
+        commentText.style.padding = (data.commentStyle.padding || 25) + 'px';
+        commentText.style.overflow = 'visible';
+        commentText.style.whiteSpace = 'normal';
+        
+        // Only set width on desktop, let CSS handle mobile
+        if (!isMobile) {
+          // Adjust comment box width based on image size
+          const imageSize = data.commentImage ? 200 : 0;
+          const boxWidth = data.commentImage ? Math.max(550, imageSize + 350) : 420;
+          box.style.width = boxWidth + 'px';
+        } else {
+          // Remove inline width on mobile to let CSS take control
+          box.style.width = '';
+        }
+      }
+      // Use old format (shapePath) for backwards compatibility
+      else if(data.shapePath) {
+        commentPath.setAttribute('d', data.shapePath);
+        const w = data.shapeWidth || 300;
+        const h = data.shapeHeight || 200;
+        commentSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+        
+        // Only set width on desktop
+        if(!isMobile && data.commentImage) {
+          box.style.width = '550px';
+        } else if(isMobile) {
+          box.style.width = '';
+        }
+      } 
+      // Default rectangle
+      else {
+        commentPath.setAttribute('d', "M10,10 L290,10 L290,190 L10,190 Z");
+        commentSvg.setAttribute('viewBox', `0 0 300 200`);
+        
+        // Only set width on desktop
+        if(!isMobile && data.commentImage) {
+          box.style.width = '550px';
+        } else if(isMobile) {
+          box.style.width = '';
+        }
+      }
+      
+      box.classList.add('visible');
+      box.style.display = 'flex';
+    } else {
+      box.classList.remove('visible');
+      box.style.display = 'none';
+    }
+  }
+
+  function closeSheet() {
+    els.sheet.classList.remove('open');
+    const commentBox = document.getElementById('sideCommentBox');
+    commentBox.classList.remove('visible', 'with-sheet');
+    commentBox.style.display = 'none';
+    if(graphSubMode === 'select') {
+        document.querySelectorAll('.point.active').forEach(p => p.classList.remove('active'));
+    }
+  }
+
+  // ================= COMPONENTS MODE =================
+  // ================= EVENT LISTENERS =================
+  function setupEventListeners() {
+    // Window resize handler - refit map on mobile
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const isMobile = window.innerWidth <= 768;
+        if(isMobile) {
+          fitMap();
+        }
+      }, 250);
+    });
+    
+    // Mode Buttons
+    els.btnData.onclick = () => setMode('data');
+    els.btnGraph.onclick = () => setMode('graph');
+    els.btnMedia.onclick = () => setMode('media');
+    els.btnComponents.onclick = () => setMode('components');
+    
+    // Graph Mode Modal
+    document.getElementById('optionFullData').onclick = () => selectGraphMode('full');
+    document.getElementById('optionSelectPoints').onclick = () => selectGraphMode('select');
+    
+    // Graph Sub-mode
+    els.btnFull.onclick = () => setGraphSubMode('full');
+    els.btnSelect.onclick = () => setGraphSubMode('select');
+    els.btnClear.onclick = () => {
+        selectedPoints = [];
+        document.querySelectorAll('.point').forEach(p => p.classList.remove('multi-active'));
+        closeSheet();
+    };
+
+    // Range Selection
+    els.applyRange.onclick = applyRangeSelection;
+
+    // Zoom/Pan/Box Selection
+    els.viewport.addEventListener('mousedown', e => {
+      // Check if clicking on a point
+      if(e.target.closest('.point')) return;
+      
+      // Check if clicking on bottom sheet or modal
+      if(e.target.closest('.bottom-sheet') || e.target.closest('.graph-mode-modal')) return;
+      
+      // In graph mode with select sub-mode, allow box selection with Shift key
+      if(currentMode === 'graph' && graphSubMode === 'select' && e.shiftKey) {
+        startBoxSelection(e);
+        return;
+      }
+      
+      // Otherwise, pan the map
+      state.isDragging = true;
+      state.dragStartX = e.clientX;
+      state.dragStartY = e.clientY;
+      state.startX = state.x;
+      state.startY = state.y;
+      els.viewport.classList.add('grabbing');
+    });
+    
+    window.addEventListener('mousemove', e => {
+      if(state.isBoxSelecting) {
+        updateBoxSelection(e);
+        return;
+      }
+      
+      if(!state.isDragging) return;
+      
+      const dx = e.clientX - state.dragStartX;
+      const dy = e.clientY - state.dragStartY;
+      state.x = state.startX + dx;
+      state.y = state.startY + dy;
+      updateTransform();
+    });
+    
+    window.addEventListener('mouseup', e => {
+      if(state.isBoxSelecting) {
+        finishBoxSelection();
+        return;
+      }
+      
+      state.isDragging = false;
+      els.viewport.classList.remove('grabbing');
+    });
+    
+    els.viewport.addEventListener('wheel', e => {
+      // Only handle wheel events when mouse is actually over the viewport
+      const rect = els.viewport.getBoundingClientRect();
+      const isOverViewport = e.clientX >= rect.left && e.clientX <= rect.right &&
+                             e.clientY >= rect.top && e.clientY <= rect.bottom;
+      
+      if(!isOverViewport) return;
+      
+      e.preventDefault();
+      
+      // Get mouse position relative to viewport
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      
+      // Get mouse position in map coordinates (before zoom)
+      const mapX = (mouseX - state.x) / state.scale;
+      const mapY = (mouseY - state.y) / state.scale;
+      
+      // Apply zoom
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      const newScale = state.scale * delta;
+      
+      // Adjust position to keep mouse point stable
+      state.x = mouseX - mapX * newScale;
+      state.y = mouseY - mapY * newScale;
+      state.scale = newScale;
+      
+      updateTransform();
+    }, {passive:false});
+
+    // ================= TOUCH EVENTS FOR MOBILE =================
+    els.viewport.addEventListener('touchstart', e => {
+      if(e.target.closest('.point')) return;
+      
+      if(e.touches.length === 1) {
+        // Single touch - pan
+        state.isTouching = true;
+        state.dragStartX = e.touches[0].clientX;
+        state.dragStartY = e.touches[0].clientY;
+        state.startX = state.x;
+        state.startY = state.y;
+      } else if(e.touches.length === 2) {
+        // Two touches - prepare for pinch zoom
+        e.preventDefault();
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        
+        state.lastTouchDistance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+        
+        state.lastTouchCenter = {
+          x: (touch1.clientX + touch2.clientX) / 2,
+          y: (touch1.clientY + touch2.clientY) / 2
+        };
+      }
+    }, {passive: false});
+    
+    els.viewport.addEventListener('touchmove', e => {
+      if(e.touches.length === 1 && state.isTouching) {
+        // Single touch - pan
+        e.preventDefault();
+        const dx = e.touches[0].clientX - state.dragStartX;
+        const dy = e.touches[0].clientY - state.dragStartY;
+        state.x = state.startX + dx;
+        state.y = state.startY + dy;
+        updateTransform();
+      } else if(e.touches.length === 2) {
+        // Two touches - pinch zoom
+        e.preventDefault();
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        
+        const currentDistance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+        
+        const currentCenter = {
+          x: (touch1.clientX + touch2.clientX) / 2,
+          y: (touch1.clientY + touch2.clientY) / 2
+        };
+        
+        if(state.lastTouchDistance > 0) {
+          const rect = els.viewport.getBoundingClientRect();
+          const centerX = currentCenter.x - rect.left;
+          const centerY = currentCenter.y - rect.top;
+          
+          // Calculate zoom point in map coordinates
+          const mapX = (centerX - state.x) / state.scale;
+          const mapY = (centerY - state.y) / state.scale;
+          
+          // Apply zoom
+          const zoomFactor = currentDistance / state.lastTouchDistance;
+          const newScale = state.scale * zoomFactor;
+          
+          // Clamp scale
+          const clampedScale = Math.max(0.1, Math.min(10, newScale));
+          
+          // Adjust position
+          state.x = centerX - mapX * clampedScale;
+          state.y = centerY - mapY * clampedScale;
+          state.scale = clampedScale;
+          
+          updateTransform();
+        }
+        
+        state.lastTouchDistance = currentDistance;
+        state.lastTouchCenter = currentCenter;
+      }
+    }, {passive: false});
+    
+    els.viewport.addEventListener('touchend', e => {
+      state.isTouching = false;
+      if(e.touches.length < 2) {
+        state.lastTouchDistance = 0;
+      }
+    }, {passive: false});
+    
+    els.viewport.addEventListener('touchcancel', e => {
+      state.isTouching = false;
+      state.lastTouchDistance = 0;
+    }, {passive: false});
+
+    // Controls
+    document.getElementById('btnPlus').onclick = () => { 
+      // Zoom towards center
+      const rect = els.viewport.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      
+      const mapX = (centerX - state.x) / state.scale;
+      const mapY = (centerY - state.y) / state.scale;
+      
+      const newScale = state.scale * 1.2;
+      state.x = centerX - mapX * newScale;
+      state.y = centerY - mapY * newScale;
+      state.scale = newScale;
+      
+      updateTransform(); 
+    };
+    
+    document.getElementById('btnMinus').onclick = () => { 
+      // Zoom towards center
+      const rect = els.viewport.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      
+      const mapX = (centerX - state.x) / state.scale;
+      const mapY = (centerY - state.y) / state.scale;
+      
+      const newScale = state.scale / 1.2;
+      state.x = centerX - mapX * newScale;
+      state.y = centerY - mapY * newScale;
+      state.scale = newScale;
+      
+      updateTransform(); 
+    };
+    document.getElementById('btnFit').onclick = fitMap;
+    document.getElementById('btnReset').onclick = fitMap;
+    document.getElementById('closeSheet').onclick = closeSheet;
+  }
+
+  function applyRangeSelection() {
+    const from = parseInt(els.rangeFrom.value) || 1;
+    const to = parseInt(els.rangeTo.value) || 1;
+    
+    if(from > to) {
+        alert('Start value must be less than or equal to end value');
+        return;
+    }
+
+    // Clear current selection
+    selectedPoints = [];
+    document.querySelectorAll('.point').forEach(p => p.classList.remove('multi-active'));
+
+    // Get all data points
+    const dataPoints = state.points.filter(p => p.type === 'data' && p.signals);
+    
+    // Select points in range
+    dataPoints.forEach(p => {
+        const rowNum = parseInt(p.row) || 0;
+        if(rowNum >= from && rowNum <= to) {
+            selectedPoints.push(p);
+            // Highlight the point on map
+            const pointEl = document.querySelector(`.point[data-id="${p.id || p.row}"]`);
+            if(pointEl) {
+                pointEl.classList.add('multi-active');
+            }
+        }
+    });
+
+    if(selectedPoints.length === 0) {
+        alert('No points found in this range');
+        return;
+    }
+
+    // Show the graph
+    renderGraphSheet();
+  }
+
+  // ================= BOX SELECTION FUNCTIONS =================
+  function startBoxSelection(e) {
+    state.isBoxSelecting = true;
+    const rect = els.viewport.getBoundingClientRect();
+    state.boxStartX = e.clientX - rect.left;
+    state.boxStartY = e.clientY - rect.top;
+    
+    const selRect = document.getElementById('selectionRect');
+    selRect.style.left = state.boxStartX + 'px';
+    selRect.style.top = state.boxStartY + 'px';
+    selRect.style.width = '0px';
+    selRect.style.height = '0px';
+    selRect.classList.add('active');
+    
+    els.viewport.style.cursor = 'crosshair';
+  }
+
+  function updateBoxSelection(e) {
+    if(!state.isBoxSelecting) return;
+    
+    const rect = els.viewport.getBoundingClientRect();
+    const currentX = e.clientX - rect.left;
+    const currentY = e.clientY - rect.top;
+    
+    const selRect = document.getElementById('selectionRect');
+    const left = Math.min(state.boxStartX, currentX);
+    const top = Math.min(state.boxStartY, currentY);
+    const width = Math.abs(currentX - state.boxStartX);
+    const height = Math.abs(currentY - state.boxStartY);
+    
+    selRect.style.left = left + 'px';
+    selRect.style.top = top + 'px';
+    selRect.style.width = width + 'px';
+    selRect.style.height = height + 'px';
+  }
+
+  function finishBoxSelection() {
+    if(!state.isBoxSelecting) return;
+    
+    state.isBoxSelecting = false;
+    const selRect = document.getElementById('selectionRect');
+    
+    // Get selection rectangle bounds
+    const rectBounds = {
+      left: parseFloat(selRect.style.left),
+      top: parseFloat(selRect.style.top),
+      right: parseFloat(selRect.style.left) + parseFloat(selRect.style.width),
+      bottom: parseFloat(selRect.style.top) + parseFloat(selRect.style.height)
+    };
+    
+    // Find points within the selection box
+    const dataPoints = state.points.filter(p => p.type === 'data' && p.signals);
+    
+    dataPoints.forEach(p => {
+      // Transform point coordinates to viewport space
+      const pointX = (p.x * state.scale) + state.x;
+      const pointY = (p.y * state.scale) + state.y;
+      
+      // Check if point is within selection rectangle
+      if(pointX >= rectBounds.left && pointX <= rectBounds.right &&
+         pointY >= rectBounds.top && pointY <= rectBounds.bottom) {
+        
+        // Check if not already selected
+        const alreadySelected = selectedPoints.findIndex(sp => sp.row === p.row);
+        if(alreadySelected === -1) {
+          selectedPoints.push(p);
+          const pointEl = document.querySelector(`.point[data-id="${p.id || p.row}"]`);
+          if(pointEl) {
+            pointEl.classList.add('multi-active');
+          }
+        }
+      }
+    });
+    
+    // Hide selection rectangle
+    selRect.classList.remove('active');
+    els.viewport.style.cursor = 'grab';
+    
+    // Show graph if points were selected
+    if(selectedPoints.length > 0) {
+      renderGraphSheet();
+    }
+  }
+
+  function fitMap() {
+    const vw = els.viewport.clientWidth;
+    const vh = els.viewport.clientHeight;
+    const iw = els.img.naturalWidth || 2000;
+    const ih = els.img.naturalHeight || 2000;
+    state.scale = Math.min(vw/iw, vh/ih) * 0.9;
+    state.x = (vw - iw*state.scale)/2;
+    state.y = (vh - ih*state.scale)/2;
+    updateTransform();
+  }
+
+  function updateTransform() {
+    els.container.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+  }
+
+  window.onload = init;
+</script>
+</body>
+</html>
